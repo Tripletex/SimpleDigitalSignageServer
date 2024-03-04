@@ -26,6 +26,5 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
-          tags: ghcr.io/tripletex-as/digitalsignageserver:latest
-          # ,ghcr.io/tripletex-as/digitalsignageserver:${{ github.event.release.tag_name }}
+          tags: ghcr.io/tripletex/simpledigitalsignageserver:latest,ghcr.io/tripletex/simpledigitalsignageserver:${{ github.event.release.tag_name }}
           push: true
