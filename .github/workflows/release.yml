@@ -1,0 +1,31 @@
+name: release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  ReleaseDocker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to GHCR
+        uses: docker/login-action@v1
+        with:
+            registry: ghcr.io
+            username: ${{github.actor}}
+            password: ${{secrets.GITHUB_TOKEN}}
+
+      - name: build tag and push image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          platforms: linux/amd64
+          tags: ghcr.io/tripletex-as/digitalsignageserver:latest
+          # ,ghcr.io/tripletex-as/digitalsignageserver:${{ github.event.release.tag_name }}
+          push: true
