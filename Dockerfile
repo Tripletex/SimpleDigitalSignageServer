@@ -26,6 +26,7 @@ RUN npm run build
 
 # ---- Release ----
 FROM base AS release
+LABEL org.opencontainers.image.source="https://github.com/Tripletex/SimpleDigitalSignageServer"
 COPY --from=clientbuild /usr/src/app/client/build ./client/
 COPY --from=serverbuild /usr/src/app/server/ ./server
 ENV CLIENT_PATH=../../../../client/
