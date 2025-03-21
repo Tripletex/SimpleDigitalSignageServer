@@ -1,4 +1,4 @@
-import Joi, { Schema, ValidationResult } from 'joi';
+import { Schema, ValidationResult } from 'joi';
 import { Request } from 'express';
 
 export async function validateAndConvert<T>(req: Request, schema: Schema): Promise<T> {

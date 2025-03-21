@@ -3,16 +3,109 @@
   background-color: #282c34;
   color: white;
   min-height: 100vh;
+  padding: 20px;
 }
-
 
 .App-header {
   display: flex;
   flex-direction: column;
   font-size: calc(10px + 2vmin);
+  margin-bottom: 30px;
+}
+
+.App-header h1 {
+  margin: 0;
 }
 
 .App-link {
   color: #61dafb;
+}
+
+.App-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  background-color: #1e2129;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.App-table th,
+.App-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #353a47;
+}
+
+.App-table th {
+  background-color: #3b4153;
+  color: #ffffff;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.85em;
+  letter-spacing: 0.5px;
+}
+
+.App-table tbody tr:hover {
+  background-color: #2a2f3a;
+}
+
+.App-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Network table styling (nested table) */
+.network-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  font-size: 0.9em;
+}
+
+.network-table th,
+.network-table td {
+  padding: 8px;
+  text-align: left;
+  border: 1px solid #353a47;
+}
+
+.network-table th {
+  background-color: #353a47;
+  font-size: 0.8em;
+  font-weight: normal;
+}
+
+/* Status indicators */
+.status-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.status-online {
+  background-color: #4CAF50;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.8);
+}
+
+.status-idle {
+  background-color: #FF9800;
+  box-shadow: 0 0 8px rgba(255, 152, 0, 0.8);
+}
+
+.status-offline {
+  background-color: #F44336;
+  box-shadow: 0 0 8px rgba(244, 67, 54, 0.8);
+}
+
+@media screen and (max-width: 768px) {
+  .App-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
 }
 
