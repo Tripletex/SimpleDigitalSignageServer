@@ -96,22 +96,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setIsAuthenticated, setUser
               Welcome, {user?.displayName || user?.username}
             </span>
             <button 
-              onClick={() => navigate('/sudoku')}
-              style={{
-                background: '#4CAF50',
-                border: 'none',
-                borderRadius: '4px',
-                padding: '8px 16px',
-                marginRight: '10px',
-                cursor: 'pointer',
-                color: 'white',
-                fontWeight: 'bold',
-                fontSize: '0.9rem'
-              }}
-            >
-              Play Sudoku
-            </button>
-            <button 
               onClick={handleLogout} 
               style={{
                 background: '#61dafb',

@@ -2,8 +2,17 @@ import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
   generateAuthenticationOptions,
-  verifyAuthenticationResponse
+  verifyAuthenticationResponse,
+  VerifyAuthenticationResponseOpts,
+  VerifyRegistrationResponseOpts
 } from '@simplewebauthn/server';
+
+import { 
+  AuthenticationResponseJSON, 
+  RegistrationResponseJSON,
+  Base64URLString,
+  AuthenticatorTransportFuture
+} from '@simplewebauthn/types';
 
 import { webAuthnConfig } from '../config/webauthn';
 import userRepository from '../repositories/userRepository';
@@ -21,6 +30,14 @@ function bufferToBase64Url(buffer: Uint8Array): string {
     .replace(/\//g, '_')
     .replace(/=/g, '');
 }
+
+// Define credential type for clarity
+type WebAuthnCredential = {
+  id: string;
+  publicKey: Uint8Array;
+  counter: number;
+  transports?: AuthenticatorTransportFuture[];
+};
 
 class WebAuthnService {
   /**
@@ -96,32 +113,66 @@ class WebAuthnService {
       
       console.log('Sending verification response to SimpleWebAuthn:', JSON.stringify(verificationResponse, null, 2));
       
-      // Verify the attestation with NO transformations
-      const verification = await verifyRegistrationResponse({
+      // Verify the attestation with any type to get past TypeScript issues
+      const opts: any = {
         response: verificationResponse,
         expectedChallenge: challenge,
         expectedOrigin: webAuthnConfig.origin,
         expectedRPID: webAuthnConfig.rpID,
         requireUserVerification: true,
-      });
+      };
+      
+      const verification = await verifyRegistrationResponse(opts);
       
       // If verification successful, save the authenticator
       if (verification.verified) {
         // Extract data from verification
         const registrationInfo = verification.registrationInfo as any;
-        const { credentialID, credentialPublicKey, counter } = registrationInfo;
+        console.log('Registration info structure:', JSON.stringify(registrationInfo, (key, value) => 
+          value instanceof Uint8Array ? `[Uint8Array of length ${value.length}]` : value, 2));
         
-        // Create a new authenticator object
-        const newAuthenticator: Authenticator = {
-          credentialID: bufferToBase64Url(credentialID),
-          credentialPublicKey: bufferToBase64Url(credentialPublicKey),
-          counter,
-          credentialDeviceType: response.authenticatorAttachment || 'platform',
-          credentialBackedUp: false,
-          transports: response.transports || [],
-        };
-        
-        await userRepository.addAuthenticator(userId, newAuthenticator);
+        try {
+          // In newer versions of SimpleWebAuthn, the data structure has changed
+          // These properties are now inside a credential object
+          const credentialID = registrationInfo.credential?.id 
+            ? base64UrlToBuffer(registrationInfo.credential.id)
+            : registrationInfo.credentialID;
+            
+          const credentialPublicKey = registrationInfo.credential?.publicKey 
+            ? registrationInfo.credential.publicKey
+            : registrationInfo.credentialPublicKey;
+            
+          const counter = registrationInfo.credential?.counter ?? registrationInfo.counter ?? 0;
+          
+          // Validate that we have the required data
+          if (!credentialID) {
+            throw new Error('CredentialID is missing from registration info');
+          }
+          
+          if (!credentialPublicKey) {
+            throw new Error('CredentialPublicKey is missing from registration info');
+          }
+          
+          // Ensure transports are valid by only keeping known transport types
+          const validTransports = (response.transports || []).filter((transport: any) => 
+            ['ble', 'cable', 'hybrid', 'internal', 'nfc', 'smart-card', 'usb'].includes(transport)
+          ) as any;
+          
+          // Create a new authenticator object
+          const newAuthenticator: Authenticator = {
+            credentialID: bufferToBase64Url(credentialID),
+            credentialPublicKey: bufferToBase64Url(credentialPublicKey),
+            counter,
+            credentialDeviceType: response.authenticatorAttachment || 'platform',
+            credentialBackedUp: false,
+            transports: validTransports,
+          };
+          
+          await userRepository.addAuthenticator(userId, newAuthenticator);
+        } catch (error) {
+          console.error('Error processing registration info:', error);
+          return { verified: false, error: String(error) };
+        }
       }
       
       return verification;
@@ -190,6 +241,15 @@ class WebAuthnService {
       }
       
       console.log('Found user for authentication:', user.email);
+      console.log('Authenticator data:', JSON.stringify(authenticator, null, 2));
+      
+      // Make sure counter is defined - this is critical for authentication
+      if (authenticator.counter === undefined) {
+        console.error('Authenticator counter is undefined. Setting to 0.');
+        authenticator.counter = 0;
+        // Update the counter in the database
+        await userRepository.updateAuthenticatorCounter(authenticator.credentialID, 0);
+      }
       
       // For authentication, we don't need to modify the response
       // The SimpleWebAuthn library expects base64url strings and does conversions itself
@@ -208,32 +268,97 @@ class WebAuthnService {
       
       console.log('Sending authentication response to SimpleWebAuthn:', JSON.stringify(verificationResponse, null, 2));
       
-      // Verify the assertion
-      const verification = await verifyAuthenticationResponse({
-        response: verificationResponse,
-        expectedChallenge: challenge,
-        expectedOrigin: webAuthnConfig.origin,
-        expectedRPID: webAuthnConfig.rpID,
-        authenticator: {
-          credentialID: base64UrlToBuffer(authenticator.credentialID),
-          credentialPublicKey: base64UrlToBuffer(authenticator.credentialPublicKey),
-          counter: authenticator.counter,
-        },
-        requireUserVerification: true,
-      } as any);
+      // Explicitly convert authenticator data to the format expected by the library
+      // Pay very close attention to the structure required by SimpleWebAuthn 13.1.1
+      const credentialIDBuffer = base64UrlToBuffer(authenticator.credentialID);
+      const credentialPublicKeyBuffer = base64UrlToBuffer(authenticator.credentialPublicKey);
       
-      // If verification successful, update the authenticator counter
-      if (verification.verified) {
-        const authenticationInfo = verification.authenticationInfo as any;
-        await userRepository.updateAuthenticatorCounter(
-          authenticator.credentialID,
-          authenticationInfo.newCounter
-        );
+      // Make sure counter is a number
+      const counter = typeof authenticator.counter === 'number' ? authenticator.counter : 0;
+      
+      console.log('Raw credential data:');
+      console.log('- credentialID (base64url):', authenticator.credentialID);
+      console.log('- credentialPublicKey (base64url):', authenticator.credentialPublicKey);
+      console.log('- counter:', counter);
+      console.log('- credentialIDBuffer length:', credentialIDBuffer.length);
+      console.log('- credentialPublicKeyBuffer length:', credentialPublicKeyBuffer.length);
+      
+      // Build the exact object structure expected by SimpleWebAuthn
+      const authData = {
+        credentialID: credentialIDBuffer,
+        credentialPublicKey: credentialPublicKeyBuffer,
+        counter: counter,
+      };
+      
+      console.log('Authentication data being used for verification:', {
+        credentialID: `Uint8Array(${credentialIDBuffer.length})`,
+        credentialPublicKey: `Uint8Array(${credentialPublicKeyBuffer.length})`,
+        counter: authData.counter
+      });
+      
+      try {
+        // Create credential object according to SimpleWebAuthn 13.1.1 requirements
+        // Must match WebAuthnCredential type exactly
+        // Filter transports to only include valid ones
+        const transports = authenticator.transports?.filter((transport: any) => 
+          ['ble', 'cable', 'hybrid', 'internal', 'nfc', 'smart-card', 'usb'].includes(transport)
+        ) as any;
+        
+        const credential: WebAuthnCredential = {
+          id: authenticator.credentialID,
+          publicKey: credentialPublicKeyBuffer,
+          counter: counter,
+          transports: transports?.length ? transports : undefined,
+        };
+        
+        console.log('Using credential object with properties:', Object.keys(credential));
+        
+        // Create complete options object with required credential property
+        // Use any type for now to get past TypeScript issues
+        const verifyOpts: any = {
+          response: verificationResponse,
+          expectedChallenge: challenge,
+          expectedOrigin: webAuthnConfig.origin,
+          expectedRPID: webAuthnConfig.rpID,
+          requireUserVerification: true,
+          credential: {
+            id: authenticator.credentialID,
+            publicKey: credentialPublicKeyBuffer,
+            counter: counter,
+          },
+        };
+        
+        const verification = await verifyAuthenticationResponse(verifyOpts);
+        
+        console.log('Authentication verification result:', verification.verified);
+        
+        // If verification successful, update the authenticator counter
+        if (verification.verified) {
+          console.log('Verification successful, authentication info:', verification.authenticationInfo);
+          
+          // In newer SimpleWebAuthn versions, the authenticationInfo structure may have changed
+          const newCounter = 
+            verification.authenticationInfo?.newCounter !== undefined 
+              ? verification.authenticationInfo.newCounter
+              : (authenticator.counter + 1);
+              
+          console.log(`Updating counter from ${authenticator.counter} to ${newCounter}`);
+          
+          await userRepository.updateAuthenticatorCounter(
+            authenticator.credentialID,
+            newCounter
+          );
+        }
+        
+        return { verified: verification.verified, user };
+      } catch (error) {
+        console.error('Authentication verification failed in inner try block:', error);
+        console.error('Error stack:', (error as Error).stack);
+        return { verified: false, user: null };
       }
-      
-      return { verified: verification.verified, user };
     } catch (error) {
-      console.error('Authentication verification error:', error);
+      console.error('Authentication verification failed in outer try block:', error);
+      console.error('Error stack:', (error as Error).stack);
       return { verified: false, user: null };
     }
   }

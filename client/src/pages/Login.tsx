@@ -174,8 +174,25 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated, setUser }) => {
       const verifyResult = await verifyResponse.json();
       
       if (verifyResult.success) {
-        setMessage('Registration successful! You can now log in.');
-        setIsRegistering(false);
+        // After successful registration, fetch current user to get session
+        const userResponse = await fetch('/api/auth/me');
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          if (userData.success) {
+            // Set authenticated state and redirect to dashboard
+            setIsAuthenticated(true);
+            setUser(userData.user);
+            navigate('/dashboard');
+          } else {
+            // Fallback to login screen if getting user data fails
+            setMessage('Registration successful! You can now log in.');
+            setIsRegistering(false);
+          }
+        } else {
+          // Fallback to login screen if getting user data fails
+          setMessage('Registration successful! You can now log in.');
+          setIsRegistering(false);
+        }
       } else {
         setError(verifyResult.message || 'Registration failed');
       }

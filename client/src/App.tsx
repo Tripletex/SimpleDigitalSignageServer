@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import './App.css';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Sudoku from './pages/Sudoku';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -64,16 +63,6 @@ function App() {
                 setIsAuthenticated={setIsAuthenticated} 
                 setUser={setUser} 
               />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/sudoku"
-          element={
-            isAuthenticated ? (
-              <Sudoku user={user} />
             ) : (
               <Navigate to="/login" replace />
             )
