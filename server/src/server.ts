@@ -47,9 +47,11 @@ app.use(session({
 
 // API Routes
 // - Device routes (ping and register are public, others require auth)
+// These paths are relative to the mount point (/api/device),
+// so we just need the endpoint name: '/ping' and '/register'
 app.use('/api/device', excludeRoutes([
-  '/api/device/ping',
-  '/api/device/register'
+  '/ping',
+  '/register'
 ]), deviceRoutes);
 
 // - Auth routes
