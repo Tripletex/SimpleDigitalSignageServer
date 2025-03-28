@@ -1,22 +1,86 @@
 import express from 'express';
-import deviceRoutes from './routes/deviceRoutes';
 import path from 'path';
+import cors from 'cors';
+import session from 'express-session';
+import cookieParser from 'cookie-parser';
+
+// Routes
+import deviceRoutes from './routes/deviceRoutes';
+import authRoutes from './routes/authRoutes';
+import userRoutes from './routes/userRoutes';
+import setupRoutes from './routes/setupRoutes';
+
+// Services and config
 import { createAllTables } from './config/createTables';
+import { SESSION_SECRET, COOKIE_CONFIG } from './config/webauthn';
+import userService from './services/userService';
+import { excludeRoutes } from './middleware/authMiddleware';
 
 const app = express();
 const port = process.env.PORT || 4000;
 
-app.use(express.json());
-app.use('/api/device', deviceRoutes);
+// Middleware
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || true,
+  credentials: true,
+  exposedHeaders: ['set-cookie']
+}));
 
+// Set headers to handle large requests
+app.use((req, res, next) => {
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Keep-Alive', 'timeout=120');
+  next();
+});
+// Increase JSON request size limit to handle WebAuthn data
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(cookieParser());
+
+// Session management
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: true,
+  cookie: COOKIE_CONFIG as any
+}));
+
+// API Routes
+// - Device routes (ping and register are public, others require auth)
+app.use('/api/device', excludeRoutes([
+  '/api/device/ping',
+  '/api/device/register'
+]), deviceRoutes);
+
+// - Auth routes
+app.use('/api/auth', authRoutes);
+
+// - User management routes (admin only)
+app.use('/api/users', userRoutes);
+
+// - Setup routes
+app.use('/api', setupRoutes);
+
+// Serve static client files
 const clientPath = process.env.CLIENT_PATH || '../../client/build';
 app.use(express.static(path.join(__dirname, clientPath)));
 
-// Initialize DynamoDB tables before starting the server
+// Serve index.html for any unknown routes (SPA support)
+app.get('*', (req, res) => {
+  if (req.url.startsWith('/api')) {
+    return res.status(404).json({ message: 'API endpoint not found' });
+  }
+  res.sendFile(path.join(__dirname, clientPath, 'index.html'));
+});
+
+// Initialize database
 async function initializeDatabase() {
   try {
     await createAllTables();
     console.log('Database initialization completed');
+    
+    // Create initial admin user if no users exist
+    await userService.createInitialAdminIfNeeded();
   } catch (error) {
     console.error('Error initializing database:', error);
     process.exit(1);

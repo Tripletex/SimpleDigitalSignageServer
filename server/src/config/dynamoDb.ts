@@ -40,5 +40,7 @@ const docClient = DynamoDBDocumentClient.from(dynamoDbClient, {
 // Constants for DynamoDB
 export const DEVICE_PING_TABLE = 'DevicePings';
 export const DEVICE_REGISTRATION_TABLE = 'DeviceRegistrations';
+export const USER_TABLE = 'Users';
+export const AUTHENTICATOR_TABLE = 'Authenticators';
 
 export { dynamoDbClient, docClient, isLocalDevelopment };
