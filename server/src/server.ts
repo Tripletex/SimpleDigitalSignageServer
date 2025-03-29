@@ -9,22 +9,29 @@ import deviceRoutes from './routes/deviceRoutes';
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 import setupRoutes from './routes/setupRoutes';
+import tenantRoutes from './routes/tenantRoutes';
 
 // Services and config
-import { createAllTables } from './config/createTables';
+import sequelize, { testConnection } from './config/database';
 import { SESSION_SECRET, COOKIE_CONFIG } from './config/webauthn';
 import userService from './services/userService';
-import { excludeRoutes } from './middleware/authMiddleware';
+import { excludeRoutes, isAuthenticated } from './middleware/authMiddleware';
 
 const app = express();
 const port = process.env.PORT || 4000;
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || true,
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   credentials: true,
   exposedHeaders: ['set-cookie']
 }));
+
+// Log all incoming requests
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
 
 // Set headers to handle large requests
 app.use((req, res, next) => {
@@ -60,6 +67,9 @@ app.use('/api/auth', authRoutes);
 // - User management routes (admin only)
 app.use('/api/users', userRoutes);
 
+// - Tenant routes (requires authentication)
+app.use('/api/tenants', isAuthenticated, tenantRoutes);
+
 // - Setup routes
 app.use('/api', setupRoutes);
 
@@ -78,11 +88,32 @@ app.get('*', (req, res) => {
 // Initialize database
 async function initializeDatabase() {
   try {
-    await createAllTables();
+    // Test database connection
+    const connected = await testConnection();
+    if (!connected) {
+      throw new Error('Failed to connect to the database');
+    }
+    
+    // Sync models with database
+    await sequelize.sync({ alter: true });
     console.log('Database initialization completed');
     
-    // Create initial admin user if no users exist
+    // Check if users exist but don't create any automatically
     await userService.createInitialAdminIfNeeded();
+    
+    // Clean up expired invitations and verification tokens
+    try {
+      const tenantRepository = (await import('./repositories/tenantRepository')).default;
+      const cleanedInvitations = await tenantRepository.cleanExpiredInvitations();
+      console.log(`Cleaned up ${cleanedInvitations} expired invitations during startup`);
+      
+      const emailVerificationService = (await import('./services/emailVerificationService')).default;
+      const cleanedVerifications = await emailVerificationService.cleanExpiredEmailVerifications();
+      console.log(`Cleaned up ${cleanedVerifications} expired email verifications during startup`);
+    } catch (error) {
+      console.error('Error cleaning up expired data:', error);
+      // Don't fail startup if this fails
+    }
   } catch (error) {
     console.error('Error initializing database:', error);
     process.exit(1);
@@ -95,11 +126,7 @@ async function startServer() {
   
   app.listen(port, () => {
     console.log(`Server is running at http://localhost:${port}`);
-    if (process.env.DYNAMODB_ENDPOINT) {
-      console.log(`Using local DynamoDB at ${process.env.DYNAMODB_ENDPOINT}`);
-    } else {
-      console.log(`Using AWS DynamoDB in region ${process.env.AWS_REGION || 'us-east-1'}`);
-    }
+    console.log(`Connected to PostgreSQL database: ${process.env.DB_NAME || 'signage'}`);
   });
 }
 

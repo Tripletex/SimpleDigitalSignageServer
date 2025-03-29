@@ -1,91 +1,105 @@
-import { v4 as uuidv4 } from 'uuid';
-import { PutCommand, GetCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
-import { docClient, DEVICE_REGISTRATION_TABLE } from '../config/dynamoDb';
-import { DeviceRegistrationRequest, DeviceRegistrationResponse } from '../../../shared/src/deviceData';
-
-export interface StoredDeviceRegistration extends DeviceRegistrationResponse {
-  deviceType?: string;
-  hardwareId?: string;
-  active: boolean;
-}
+import { Device } from '../models/Device';
+import { DeviceRegistration } from '../models/DeviceRegistration';
+import { generateUUID } from '../utils/helpers';
 
 class DeviceRegistrationRepository {
-  async registerDevice(request: DeviceRegistrationRequest): Promise<DeviceRegistrationResponse> {
-    const id = uuidv4();
-    const registrationTime = new Date();
+  /**
+   * Register a new device
+   */
+  async registerDevice(
+    request: { deviceType?: string; hardwareId?: string; }
+  ): Promise<{ id: string; registrationTime: Date }> {
+    // Generate a unique ID for the device
+    const deviceId = generateUUID();
     
-    const registration: StoredDeviceRegistration = {
-      id,
-      registrationTime,
+    // Create the device
+    const device = await Device.create({
+      id: deviceId,
+      name: `Device-${deviceId.substr(0, 8)}`
+    });
+    
+    // Create device registration
+    const registration = await DeviceRegistration.create({
+      id: generateUUID(),
+      deviceId: deviceId,
       deviceType: request.deviceType,
       hardwareId: request.hardwareId,
-      active: true
-    };
-    
-    const command = new PutCommand({
-      TableName: DEVICE_REGISTRATION_TABLE,
-      Item: {
-        id,
-        registrationTime: registrationTime.toISOString(),
-        deviceType: request.deviceType,
-        hardwareId: request.hardwareId,
-        active: true
-      }
+      registrationTime: new Date(),
+      lastSeen: new Date()
     });
-    
-    await docClient.send(command);
     
     return {
-      id,
-      registrationTime
+      id: deviceId,
+      registrationTime: registration.registrationTime
     };
   }
   
-  async getDeviceById(id: string): Promise<StoredDeviceRegistration | null> {
-    const command = new GetCommand({
-      TableName: DEVICE_REGISTRATION_TABLE,
-      Key: { id }
+  /**
+   * Check if a device ID is valid and active
+   */
+  async isValidDeviceId(deviceId: string): Promise<boolean> {
+    const registration = await DeviceRegistration.findOne({
+      where: { deviceId }
     });
     
-    const response = await docClient.send(command);
-    if (!response.Item) return null;
-    
-    return {
-      id: response.Item.id,
-      registrationTime: new Date(response.Item.registrationTime),
-      deviceType: response.Item.deviceType,
-      hardwareId: response.Item.hardwareId,
-      active: response.Item.active
-    };
+    return !!registration;
   }
   
-  async getAllDevices(): Promise<StoredDeviceRegistration[]> {
-    const command = new ScanCommand({
-      TableName: DEVICE_REGISTRATION_TABLE
+  /**
+   * Get all registered devices
+   */
+  async getAllRegisteredDevices(): Promise<DeviceRegistration[]> {
+    return await DeviceRegistration.findAll({
+      include: [
+        {
+          model: Device,
+          include: ['networks']
+        }
+      ]
     });
-    
-    const response = await docClient.send(command);
-    const items = response.Items || [];
-    
-    return items.map(item => ({
-      id: item.id,
-      registrationTime: new Date(item.registrationTime),
-      deviceType: item.deviceType,
-      hardwareId: item.hardwareId,
-      active: item.active
-    }));
   }
   
-  async deactivateDevice(id: string): Promise<void> {
-    const command = new PutCommand({
-      TableName: DEVICE_REGISTRATION_TABLE,
-      Item: {
-        id,
-        active: false
-      }
+  /**
+   * Get all devices (alias for getAllRegisteredDevices for compatibility)
+   */
+  async getAllDevices(): Promise<DeviceRegistration[]> {
+    return await this.getAllRegisteredDevices();
+  }
+  
+  /**
+   * Get registration for a specific device
+   */
+  async getDeviceRegistration(deviceId: string): Promise<DeviceRegistration | null> {
+    return await DeviceRegistration.findOne({
+      where: { deviceId },
+      include: [
+        {
+          model: Device,
+          include: ['networks']
+        }
+      ]
+    });
+  }
+  
+  /**
+   * Get device by ID (alias for getDeviceRegistration for compatibility)
+   */
+  async getDeviceById(deviceId: string): Promise<DeviceRegistration | null> {
+    return await this.getDeviceRegistration(deviceId);
+  }
+  
+  /**
+   * Deactivate a device
+   */
+  async deactivateDevice(deviceId: string): Promise<void> {
+    const registration = await DeviceRegistration.findOne({
+      where: { deviceId }
     });
     
-    await docClient.send(command);
+    if (registration) {
+      // Soft delete or mark as inactive
+      await registration.update({ active: false });
+    }
   }
 }
 

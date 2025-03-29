@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DeviceRegistration } from '../../../shared/src/deviceData';
+import { DeviceRegistration } from '../services/deviceService';
 import moment from 'moment';
+import Layout from '../components/Layout';
 import '../App.css';
 
 interface DashboardProps {
@@ -87,105 +88,85 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setIsAuthenticated, setUser
   };
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <h1>Digital Signage Device Dashboard</h1>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <span style={{ marginRight: '20px', fontSize: '1rem' }}>
-              Welcome, {user?.displayName || user?.username}
-            </span>
-            <button 
-              onClick={handleLogout} 
-              style={{
-                background: '#61dafb',
-                border: 'none',
-                borderRadius: '4px',
-                padding: '8px 16px',
-                cursor: 'pointer',
-                color: '#282c34',
-                fontWeight: 'bold',
-                fontSize: '0.9rem'
-              }}
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
-      
-      {loading && <p>Loading devices...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      
-      {!loading && !error && deviceRegistrations.length === 0 && (
-        <p>No devices registered yet.</p>
-      )}
-      
-      {deviceRegistrations.length > 0 && (
-        <div>
-          <p>Showing {deviceRegistrations.length} device(s)</p>
-          <table className="App-table">
-            <thead>
-              <tr>
-                <th>Device Name</th>
-                <th>Status</th>
-                <th>Last Seen</th>
-                <th>Registration Time</th>
-                <th>Networks</th>
-              </tr>
-            </thead>
-            <tbody>
-              {deviceRegistrations.map((registration) => {
-                const { status, color } = getDeviceStatus(registration.lastSeen);
-                return (
-                  <tr key={registration.deviceData.id}>
-                    <td>{registration.deviceData.name}</td>
-                    <td style={{ color }}>
-                      <span className={`status-indicator status-${status.toLowerCase()}`}></span>
-                      {status}
-                    </td>
-                    <td>
-                      {formatDate(registration.lastSeen)}
-                      <div style={{ fontSize: '0.8em', color: '#666' }}>
-                        ({getTimeSince(registration.lastSeen)})
-                      </div>
-                    </td>
-                    <td>
-                      {formatDate(registration.registrationTime)}
-                      <div style={{ fontSize: '0.8em', color: '#666' }}>
-                        ({getTimeSince(registration.registrationTime)})
-                      </div>
-                    </td>
-                    <td>
-                      {registration.deviceData.networks?.length ? (
-                        <table className="network-table">
-                          <thead>
-                            <tr>
-                              <th>Network</th>
-                              <th>IP Addresses</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {registration.deviceData.networks.map((network, index) => (
-                              <tr key={`${registration.deviceData.id}-network-${index}`}>
-                                <td>{network.name}</td>
-                                <td>{network.ipAddress.join(', ')}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      ) : (
-                        <span>No networks</span>
-                      )}
-                    </td>
+    <Layout user={user} handleLogout={handleLogout}>
+      <div className="dashboard-container">
+        <h1>Device Dashboard</h1>
+        
+        {loading && <p>Loading devices...</p>}
+        {error && <p style={{ color: 'red' }}>{error}</p>}
+        
+        {!loading && !error && deviceRegistrations.length === 0 && (
+          <p>No devices registered yet.</p>
+        )}
+        
+        {deviceRegistrations.length > 0 && (
+          <div>
+            <p>Showing {deviceRegistrations.length} device(s)</p>
+            <div className="table-responsive">
+              <table className="App-table">
+                <thead>
+                  <tr>
+                    <th>Device Name</th>
+                    <th>Status</th>
+                    <th>Last Seen</th>
+                    <th>Registration Time</th>
+                    <th>Networks</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+                </thead>
+                <tbody>
+                  {deviceRegistrations.map((registration) => {
+                    const { status, color } = getDeviceStatus(registration.lastSeen);
+                    return (
+                      <tr key={registration.deviceData.id}>
+                        <td>{registration.deviceData.name}</td>
+                        <td style={{ color }}>
+                          <span className={`status-indicator status-${status.toLowerCase()}`}></span>
+                          {status}
+                        </td>
+                        <td>
+                          {formatDate(registration.lastSeen)}
+                          <div style={{ fontSize: '0.8em', color: '#666' }}>
+                            ({getTimeSince(registration.lastSeen)})
+                          </div>
+                        </td>
+                        <td>
+                          {formatDate(registration.registrationTime)}
+                          <div style={{ fontSize: '0.8em', color: '#666' }}>
+                            ({getTimeSince(registration.registrationTime)})
+                          </div>
+                        </td>
+                        <td>
+                          {registration.deviceData.networks?.length ? (
+                            <table className="network-table">
+                              <thead>
+                                <tr>
+                                  <th>Network</th>
+                                  <th>IP Addresses</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {registration.deviceData.networks.map((network, index) => (
+                                  <tr key={`${registration.deviceData.id}-network-${index}`}>
+                                    <td>{network.name}</td>
+                                    <td>{network.ipAddress.join(', ')}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <span>No networks</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </Layout>
   );
 };
 

@@ -3,6 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import './App.css';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Devices from './pages/Devices';
+import Users from './pages/Users';
+import Organizations from './pages/Organizations';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -65,6 +68,58 @@ function App() {
               />
             ) : (
               <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/devices"
+          element={
+            isAuthenticated ? (
+              <Devices 
+                user={user} 
+                setIsAuthenticated={setIsAuthenticated} 
+                setUser={setUser} 
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            isAuthenticated ? (
+              <Users 
+                user={user} 
+                setIsAuthenticated={setIsAuthenticated} 
+                setUser={setUser} 
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/organizations"
+          element={
+            isAuthenticated ? (
+              <Organizations 
+                user={user} 
+                setIsAuthenticated={setIsAuthenticated} 
+                setUser={setUser} 
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/verify-email/:token"
+          element={
+            isAuthenticated ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Login setIsAuthenticated={setIsAuthenticated} setUser={setUser} />
             )
           }
         />

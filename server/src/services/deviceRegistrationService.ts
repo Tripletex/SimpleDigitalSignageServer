@@ -13,6 +13,13 @@ class DeviceRegistrationService {
    * Gets all registered devices
    */
   getAllRegisteredDevices = async () => {
+    return await deviceRegistrationRepository.getAllRegisteredDevices();
+  };
+  
+  /**
+   * Gets all registered devices (alias for getAllRegisteredDevices)
+   */
+  getAllDevices = async () => {
     return await deviceRegistrationRepository.getAllDevices();
   };
 
@@ -22,6 +29,13 @@ class DeviceRegistrationService {
   isValidDeviceId = async (id: string): Promise<boolean> => {
     const device = await deviceRegistrationRepository.getDeviceById(id);
     return device !== null && device.active === true;
+  };
+  
+  /**
+   * Gets a device by ID
+   */
+  getDeviceById = async (id: string) => {
+    return await deviceRegistrationRepository.getDeviceById(id);
   };
 
   /**

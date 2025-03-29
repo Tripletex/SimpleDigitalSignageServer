@@ -9,8 +9,15 @@ class AuthRoutes {
     // User management (admin only)
     this.router.post('/register', isAuthenticated, authController.registerUser);
     
-    // Public user registration 
+    // Email verification based registration
     this.router.post('/self-register', authController.selfRegister);
+    this.router.get('/verify-email/:token', authController.verifyEmailToken);
+    this.router.post('/complete-registration', authController.completeRegistration);
+    
+    // Development-only direct verification route (makes testing easier)
+    if (process.env.NODE_ENV !== 'production') {
+      this.router.get('/dev/verify/:token', authController.verifyEmailToken);
+    }
     
     // WebAuthn registration
     this.router.get('/webauthn/registration-options', isAuthenticated, authController.getRegistrationOptions);

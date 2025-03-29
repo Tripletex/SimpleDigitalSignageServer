@@ -4,7 +4,9 @@ import {
   DEVICE_PING_TABLE, 
   DEVICE_REGISTRATION_TABLE,
   USER_TABLE,
-  AUTHENTICATOR_TABLE
+  AUTHENTICATOR_TABLE,
+  TENANT_TABLE,
+  TENANT_MEMBER_TABLE
 } from './dynamoDb';
 
 async function createDevicePingTable() {
@@ -191,11 +193,147 @@ async function createAuthenticatorTable() {
   }
 }
 
+async function createTenantTable() {
+  try {
+    const command = new CreateTableCommand({
+      TableName: TENANT_TABLE,
+      AttributeDefinitions: [
+        {
+          AttributeName: 'id',
+          AttributeType: 'S'
+        },
+        {
+          AttributeName: 'ownerId',
+          AttributeType: 'S'
+        }
+      ],
+      KeySchema: [
+        {
+          AttributeName: 'id',
+          KeyType: 'HASH'
+        }
+      ],
+      GlobalSecondaryIndexes: [
+        {
+          IndexName: 'OwnerIdIndex',
+          KeySchema: [
+            {
+              AttributeName: 'ownerId',
+              KeyType: 'HASH'
+            }
+          ],
+          Projection: {
+            ProjectionType: 'ALL'
+          },
+          ProvisionedThroughput: {
+            ReadCapacityUnits: 5,
+            WriteCapacityUnits: 5
+          }
+        }
+      ],
+      ProvisionedThroughput: {
+        ReadCapacityUnits: 5,
+        WriteCapacityUnits: 5
+      }
+    });
+
+    const response = await dynamoDbClient.send(command);
+    console.log(`Table ${TENANT_TABLE} created successfully`);
+    return response;
+  } catch (error) {
+    if ((error as any).name === 'ResourceInUseException') {
+      console.log(`Table ${TENANT_TABLE} already exists.`);
+    } else {
+      console.error(`Error creating table ${TENANT_TABLE}:`, error);
+      throw error;
+    }
+  }
+}
+
+async function createTenantMemberTable() {
+  try {
+    const command = new CreateTableCommand({
+      TableName: TENANT_MEMBER_TABLE,
+      AttributeDefinitions: [
+        {
+          AttributeName: 'id',
+          AttributeType: 'S'
+        },
+        {
+          AttributeName: 'tenantId',
+          AttributeType: 'S'
+        },
+        {
+          AttributeName: 'userId',
+          AttributeType: 'S'
+        }
+      ],
+      KeySchema: [
+        {
+          AttributeName: 'id',
+          KeyType: 'HASH'
+        }
+      ],
+      GlobalSecondaryIndexes: [
+        {
+          IndexName: 'TenantIdIndex',
+          KeySchema: [
+            {
+              AttributeName: 'tenantId',
+              KeyType: 'HASH'
+            }
+          ],
+          Projection: {
+            ProjectionType: 'ALL'
+          },
+          ProvisionedThroughput: {
+            ReadCapacityUnits: 5,
+            WriteCapacityUnits: 5
+          }
+        },
+        {
+          IndexName: 'UserIdIndex',
+          KeySchema: [
+            {
+              AttributeName: 'userId',
+              KeyType: 'HASH'
+            }
+          ],
+          Projection: {
+            ProjectionType: 'ALL'
+          },
+          ProvisionedThroughput: {
+            ReadCapacityUnits: 5,
+            WriteCapacityUnits: 5
+          }
+        }
+      ],
+      ProvisionedThroughput: {
+        ReadCapacityUnits: 5,
+        WriteCapacityUnits: 5
+      }
+    });
+
+    const response = await dynamoDbClient.send(command);
+    console.log(`Table ${TENANT_MEMBER_TABLE} created successfully`);
+    return response;
+  } catch (error) {
+    if ((error as any).name === 'ResourceInUseException') {
+      console.log(`Table ${TENANT_MEMBER_TABLE} already exists.`);
+    } else {
+      console.error(`Error creating table ${TENANT_MEMBER_TABLE}:`, error);
+      throw error;
+    }
+  }
+}
+
 async function createAllTables() {
   await createDevicePingTable();
   await createRegistrationTable();
   await createUserTable();
   await createAuthenticatorTable();
+  await createTenantTable();
+  await createTenantMemberTable();
 }
 
 // Execute if this file is run directly
@@ -210,5 +348,7 @@ export {
   createRegistrationTable, 
   createUserTable,
   createAuthenticatorTable,
+  createTenantTable,
+  createTenantMemberTable,
   createAllTables 
 };

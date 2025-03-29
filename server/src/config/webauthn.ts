@@ -13,7 +13,8 @@ export const SESSION_SECRET = process.env.SESSION_SECRET || 'digital-signage-sec
 // Cookie configuration
 export const COOKIE_CONFIG = {
   httpOnly: true,
-  sameSite: 'strict' as const,
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax' as const,
   secure: process.env.NODE_ENV === 'production',
   maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  path: '/'
 };

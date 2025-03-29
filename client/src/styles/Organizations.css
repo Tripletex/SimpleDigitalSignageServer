@@ -1,0 +1,359 @@
+.organizations-container {
+  padding: 20px;
+}
+
+.organizations-container h1 {
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.organizations-content {
+  display: flex;
+  gap: 20px;
+  min-height: calc(100vh - 160px);
+}
+
+/* Organizations sidebar */
+.organizations-sidebar {
+  width: 280px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.organizations-sidebar h2 {
+  font-size: 1.1rem;
+  color: #2c3e50;
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.organization-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  margin-bottom: 20px;
+  flex-grow: 1;
+}
+
+.organization-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.organization-item:hover {
+  background-color: #f5f7fa;
+}
+
+.organization-item.active {
+  background-color: #ebf5ff;
+}
+
+.org-icon {
+  font-size: 1.2rem;
+  margin-right: 10px;
+}
+
+.org-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.org-name {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.org-role {
+  font-size: 0.8rem;
+  color: #7f8c8d;
+  margin-top: 2px;
+}
+
+.new-organization-btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: auto;
+}
+
+.new-organization-btn:hover {
+  background-color: #2980b9;
+}
+
+/* Organization details */
+.organization-details {
+  flex-grow: 1;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+}
+
+.organization-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.organization-title h2 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.organization-type {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+}
+
+.delete-organization-btn {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.delete-organization-btn:hover {
+  background-color: #c0392b;
+}
+
+.organization-section {
+  margin-bottom: 30px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.section-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.2rem;
+}
+
+.invite-btn {
+  background-color: #2ecc71;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.invite-btn:hover {
+  background-color: #27ae60;
+}
+
+.invite-form {
+  background-color: #f9f9f9;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  border: 1px solid #eee;
+}
+
+.invite-form-group {
+  margin-bottom: 15px;
+}
+
+.invite-form-group label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 5px;
+  font-size: 0.9rem;
+  color: #2c3e50;
+}
+
+.invite-form-group input,
+.invite-form-group select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.send-invite-btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.send-invite-btn:hover {
+  background-color: #2980b9;
+}
+
+.success-message {
+  background-color: #d5f5e3;
+  color: #27ae60;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+}
+
+.error-message {
+  background-color: #fadbd8;
+  color: #e74c3c;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+}
+
+/* Members table */
+.members-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.members-table th,
+.members-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.members-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.member-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.member-name {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.member-email {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  margin-top: 2px;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.role-badge.owner {
+  background-color: #3498db;
+  color: white;
+}
+
+.role-badge.admin {
+  background-color: #9b59b6;
+  color: white;
+}
+
+.role-badge.member {
+  background-color: #95a5a6;
+  color: white;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.status-badge.active {
+  background-color: #2ecc71;
+  color: white;
+}
+
+.status-badge.pending {
+  background-color: #f39c12;
+  color: white;
+}
+
+.member-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.member-action {
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.member-action.remove {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.member-action.promote {
+  background-color: #3498db;
+  color: white;
+}
+
+.member-action.demote {
+  background-color: #f39c12;
+  color: white;
+}
+
+.member-action:hover {
+  opacity: 0.9;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .organizations-content {
+    flex-direction: column;
+  }
+  
+  .organizations-sidebar {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+  
+  .member-actions {
+    flex-direction: column;
+  }
+}

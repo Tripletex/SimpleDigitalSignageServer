@@ -7,6 +7,11 @@ declare module 'express-session' {
     username?: string; // We keep this as username but store email in it for backward compatibility
     role?: string;
     challenge?: string;
+    verifiedEmail?: string; // For email verification flow
+    isFirstUser?: boolean; // Flag for determining admin role
+    invitingTenantId?: string; // For invitation flow
+    invitedRole?: string; // For invitation flow
+    verificationToken?: string; // Store token for later cleanup
   }
 }
 

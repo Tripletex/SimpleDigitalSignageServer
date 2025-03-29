@@ -8,6 +8,10 @@ export interface DeviceData {
     id: string;
     name: string;
     networks: Network[];
+    tenantId?: string; // ID of the tenant that claimed this device
+    claimedBy?: string; // ID of the user who claimed the device
+    claimedAt?: Date; // When the device was claimed
+    displayName?: string; // Custom name given to the device by the tenant
 }
 
 export interface DeviceRegistration {
@@ -25,4 +29,16 @@ export interface DeviceRegistrationRequest {
 export interface DeviceRegistrationResponse {
     id: string; // The UUID assigned to this device
     registrationTime: Date;
+}
+
+// Device claim request and response
+export interface DeviceClaimRequest {
+    deviceId: string;
+    displayName?: string;
+}
+
+export interface DeviceClaimResponse {
+    success: boolean;
+    message: string;
+    device?: DeviceData;
 }

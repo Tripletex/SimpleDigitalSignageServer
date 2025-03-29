@@ -6,7 +6,7 @@ class UserController {
   /**
    * Get all users (admin only)
    */
-  public getAllUsers = handleErrors(async (req: Request, res: Response) => {
+  public getAllUsers = handleErrors(async (req: Request, res: Response): Promise<void> => {
     const users = await userService.getAllUsers();
     
     // Map users to safe response format
@@ -28,7 +28,7 @@ class UserController {
   /**
    * Get user by ID (admin only)
    */
-  public getUserById = handleErrors(async (req: Request, res: Response) => {
+  public getUserById = handleErrors(async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
     const user = await userService.getUserById(id);
     
@@ -54,7 +54,7 @@ class UserController {
   /**
    * Update user (admin only)
    */
-  public updateUser = handleErrors(async (req: Request, res: Response) => {
+  public updateUser = handleErrors(async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
     const { displayName, email, role } = req.body;
     
@@ -86,7 +86,7 @@ class UserController {
   /**
    * Delete user (admin only)
    */
-  public deleteUser = handleErrors(async (req: Request, res: Response) => {
+  public deleteUser = handleErrors(async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
     
     // Check if deleting self

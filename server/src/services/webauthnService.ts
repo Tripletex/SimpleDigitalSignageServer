@@ -16,7 +16,9 @@ import {
 
 import { webAuthnConfig } from '../config/webauthn';
 import userRepository from '../repositories/userRepository';
-import { User, Authenticator } from '../../../shared/src/userData';
+import { User as SharedUser, Authenticator as SharedAuthenticator } from '../../../shared/src/userData';
+import { User } from '../models/User';
+import { Authenticator } from '../models/Authenticator';
 
 // Helper to convert base64url to buffer
 function base64UrlToBuffer(base64url: string): Uint8Array {
@@ -39,6 +41,43 @@ type WebAuthnCredential = {
   transports?: AuthenticatorTransportFuture[];
 };
 
+// Map from Model User to Shared User type
+function mapUserToSharedUser(user: User | null): SharedUser | null {
+  if (!user) return null;
+  
+  // Map authenticators if they exist
+  const authenticators = user.authenticators?.map(auth => {
+    let transports: string[] = [];
+    
+    // Parse transports if they exist and are a string
+    if (auth.transports) {
+      try {
+        transports = JSON.parse(auth.transports);
+      } catch (e) {
+        console.error('Error parsing transports:', e);
+      }
+    }
+    
+    return {
+      credentialID: auth.credentialId,
+      credentialPublicKey: auth.publicKey,
+      counter: typeof auth.counter === 'string' ? parseInt(auth.counter, 10) : 0,
+      credentialDeviceType: auth.deviceType,
+      credentialBackedUp: false, // Default value since it's not in the model
+      transports,
+    } as SharedAuthenticator;
+  }) || [];
+  
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    createdAt: user.createdAt,
+    role: user.role,
+    authenticators,
+  };
+}
+
 class WebAuthnService {
   /**
    * Generate registration options for a new authenticator
@@ -50,7 +89,7 @@ class WebAuthnService {
     
     // Prepare the authenticator list for the options generation
     const excludeCredentials = userAuthenticators.map(auth => ({
-      id: auth.credentialID,
+      id: auth.credentialId, // Changed from credentialID to match model
       type: 'public-key' as const,
     })) as any;
     
@@ -159,7 +198,7 @@ class WebAuthnService {
           ) as any;
           
           // Create a new authenticator object
-          const newAuthenticator: Authenticator = {
+          const newAuthenticator: SharedAuthenticator = {
             credentialID: bufferToBase64Url(credentialID),
             credentialPublicKey: bufferToBase64Url(credentialPublicKey),
             counter,
@@ -194,7 +233,7 @@ class WebAuthnService {
       
       if (user && user.authenticators && user.authenticators.length > 0) {
         allowCredentials = user.authenticators.map(authenticator => ({
-          id: authenticator.credentialID,
+          id: authenticator.credentialId, // Changed from credentialID to match model
           type: 'public-key' as const,
         }));
       }
@@ -217,7 +256,7 @@ class WebAuthnService {
   async verifyAuthentication(
     response: any,
     challenge: string
-  ): Promise<{ verified: boolean; user: User | null }> {
+  ): Promise<{ verified: boolean; user: SharedUser | null }> {
     try {
       console.log('WebAuthn verifyAuthentication - challenge:', challenge);
       console.log('WebAuthn verifyAuthentication - response:', JSON.stringify(response, null, 2));
@@ -246,9 +285,9 @@ class WebAuthnService {
       // Make sure counter is defined - this is critical for authentication
       if (authenticator.counter === undefined) {
         console.error('Authenticator counter is undefined. Setting to 0.');
-        authenticator.counter = 0;
+        authenticator.counter = "0"; // Store as string to match the model type
         // Update the counter in the database
-        await userRepository.updateAuthenticatorCounter(authenticator.credentialID, 0);
+        await userRepository.updateAuthenticatorCounter(authenticator.credentialId, 0);
       }
       
       // For authentication, we don't need to modify the response
@@ -270,15 +309,15 @@ class WebAuthnService {
       
       // Explicitly convert authenticator data to the format expected by the library
       // Pay very close attention to the structure required by SimpleWebAuthn 13.1.1
-      const credentialIDBuffer = base64UrlToBuffer(authenticator.credentialID);
-      const credentialPublicKeyBuffer = base64UrlToBuffer(authenticator.credentialPublicKey);
+      const credentialIDBuffer = base64UrlToBuffer(authenticator.credentialId);
+      const credentialPublicKeyBuffer = base64UrlToBuffer(authenticator.publicKey);
       
       // Make sure counter is a number
       const counter = typeof authenticator.counter === 'number' ? authenticator.counter : 0;
       
       console.log('Raw credential data:');
-      console.log('- credentialID (base64url):', authenticator.credentialID);
-      console.log('- credentialPublicKey (base64url):', authenticator.credentialPublicKey);
+      console.log('- credentialId (base64url):', authenticator.credentialId);
+      console.log('- publicKey (base64url):', authenticator.publicKey);
       console.log('- counter:', counter);
       console.log('- credentialIDBuffer length:', credentialIDBuffer.length);
       console.log('- credentialPublicKeyBuffer length:', credentialPublicKeyBuffer.length);
@@ -287,7 +326,7 @@ class WebAuthnService {
       const authData = {
         credentialID: credentialIDBuffer,
         credentialPublicKey: credentialPublicKeyBuffer,
-        counter: counter,
+        counter: parseInt(counter.toString(), 10),
       };
       
       console.log('Authentication data being used for verification:', {
@@ -300,14 +339,16 @@ class WebAuthnService {
         // Create credential object according to SimpleWebAuthn 13.1.1 requirements
         // Must match WebAuthnCredential type exactly
         // Filter transports to only include valid ones
-        const transports = authenticator.transports?.filter((transport: any) => 
+        const transportsStr = typeof authenticator.transports === 'string' ? 
+          JSON.parse(authenticator.transports) : [];
+        const transports = transportsStr.filter((transport: any) => 
           ['ble', 'cable', 'hybrid', 'internal', 'nfc', 'smart-card', 'usb'].includes(transport)
         ) as any;
         
         const credential: WebAuthnCredential = {
-          id: authenticator.credentialID,
+          id: authenticator.credentialId,
           publicKey: credentialPublicKeyBuffer,
-          counter: counter,
+          counter: typeof counter === 'string' ? parseInt(counter, 10) : counter,
           transports: transports?.length ? transports : undefined,
         };
         
@@ -322,9 +363,9 @@ class WebAuthnService {
           expectedRPID: webAuthnConfig.rpID,
           requireUserVerification: true,
           credential: {
-            id: authenticator.credentialID,
+            id: authenticator.credentialId,
             publicKey: credentialPublicKeyBuffer,
-            counter: counter,
+            counter: typeof counter === 'string' ? parseInt(counter, 10) : counter,
           },
         };
         
@@ -345,12 +386,13 @@ class WebAuthnService {
           console.log(`Updating counter from ${authenticator.counter} to ${newCounter}`);
           
           await userRepository.updateAuthenticatorCounter(
-            authenticator.credentialID,
-            newCounter
+            authenticator.credentialId,
+            typeof newCounter === 'string' ? parseInt(newCounter, 10) : newCounter
           );
         }
         
-        return { verified: verification.verified, user };
+        const sharedUser = mapUserToSharedUser(user);
+        return { verified: verification.verified, user: sharedUser };
       } catch (error) {
         console.error('Authentication verification failed in inner try block:', error);
         console.error('Error stack:', (error as Error).stack);
