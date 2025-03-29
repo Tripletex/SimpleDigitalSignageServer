@@ -40,6 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     { name: 'Dashboard', path: '/dashboard', icon: '📊' },
     { name: 'Devices', path: '/devices', icon: '📱' },
     { name: 'Playlists', path: '/playlists', icon: '🎞️' },
+    { name: 'Campaigns', path: '/campaigns', icon: '📋' },
     { name: 'Organizations', path: '/organizations', icon: '🏢' },
     { name: 'Profile', path: '/profile', icon: '👤' }
   ];

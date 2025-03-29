@@ -24,6 +24,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
   const [deviceRegistrations, setDeviceRegistrations] = useState<DeviceRegistration[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showClaimModal, setShowClaimModal] = useState<boolean>(false);
   const [deviceUuid, setDeviceUuid] = useState<string>('');
   const [deviceName, setDeviceName] = useState<string>('');
@@ -72,8 +73,10 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
         
         setDeviceRegistrations(devices);
         setError(null);
+        setSuccessMessage(null);
       } catch (err) {
         setError(`Error fetching devices: ${err instanceof Error ? err.message : String(err)}`);
+        setSuccessMessage(null);
         console.error('Error fetching devices:', err);
       } finally {
         setLoading(false);
@@ -162,20 +165,62 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
   const handleReleaseDevice = async (deviceId: string) => {
     if (!currentTenant) {
       setError('No tenant selected. Please select a tenant from the dropdown.');
+      setSuccessMessage(null);
       return;
     }
 
     try {
       // Call the API to release the device
-      await deviceService.releaseDevice(currentTenant.id, deviceId);
+      const result = await deviceService.releaseDevice(currentTenant.id, deviceId);
       
       // Refresh the device list
       const devices = await deviceService.getTenantDevices(currentTenant.id);
       setDeviceRegistrations(devices);
       
+      // Show success message
+      setError(null);
+      setSuccessMessage(result.message || "Device successfully released");
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
+      
     } catch (err) {
       setError(`Error releasing device: ${err instanceof Error ? err.message : String(err)}`);
+      setSuccessMessage(null);
       console.error('Error releasing device:', err);
+    }
+  };
+  
+  const handleConfigureDevice = async (deviceId: string, deviceName: string) => {
+    // This is a placeholder for future implementation
+    // In a real implementation, this would open a configuration modal or navigate to a device configuration page
+    
+    if (!currentTenant) {
+      setError('No tenant selected. Please select a tenant from the dropdown.');
+      setSuccessMessage(null);
+      return;
+    }
+    
+    try {
+      // For now, just show an alert
+      setError(null);
+      // Instead of an alert, show a success message
+      setSuccessMessage(`Configuration for device '${deviceName}' will be implemented in a future update`);
+      
+      // Clear the message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
+      
+      // You could also navigate to a device configuration page:
+      // navigate(`/devices/${deviceId}/configure`);
+      
+    } catch (err) {
+      setError(`Error configuring device: ${err instanceof Error ? err.message : String(err)}`);
+      setSuccessMessage(null);
+      console.error('Error configuring device:', err);
     }
   };
 
@@ -231,6 +276,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
         
         {loading && <p>Loading devices...</p>}
         {error && <p className="error-message">{error}</p>}
+        {successMessage && <p className="success-message">{successMessage}</p>}
         
         {!loading && !error && deviceRegistrations.length === 0 && (
           <div className="empty-state">
@@ -320,14 +366,32 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
                             <span>No networks</span>
                           )}
                         </td>
-                        <td>
-                          <button className="action-button edit">Configure</button>
+                        <td className="action-buttons-cell">
+                          <button 
+                            className="action-button config"
+                            onClick={() => {
+                              if (registration.deviceData?.id) {
+                                handleConfigureDevice(registration.deviceData.id, displayName);
+                              }
+                            }}
+                            title="Configure Device"
+                          >
+                            <span className="button-icon">⚙️</span>
+                            <span className="button-text">Configure</span>
+                          </button>
+                          
                           {registration.deviceData?.id && (
                             <button 
-                              className="action-button delete"
-                              onClick={() => handleReleaseDevice(registration.deviceData.id)}
+                              className="action-button release"
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to release device ${displayName}?`)) {
+                                  handleReleaseDevice(registration.deviceData.id);
+                                }
+                              }}
+                              title="Release Device"
                             >
-                              Release
+                              <span className="button-icon">🔓</span>
+                              <span className="button-text">Release</span>
                             </button>
                           )}
                         </td>

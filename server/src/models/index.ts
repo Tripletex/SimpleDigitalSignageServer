@@ -8,6 +8,10 @@ import { PendingInvitation } from './PendingInvitation';
 import { Device } from './Device';
 import { DeviceNetwork } from './DeviceNetwork';
 import { DeviceRegistration } from './DeviceRegistration';
+import { Playlist } from './Playlist';
+import { PlaylistItem } from './PlaylistItem';
+import { PlaylistGroup } from './PlaylistGroup';
+import { PlaylistSchedule } from './PlaylistSchedule';
 import { Sequelize } from 'sequelize-typescript';
 
 // Export all models for direct import
@@ -20,7 +24,11 @@ export {
   PendingInvitation,
   Device,
   DeviceNetwork,
-  DeviceRegistration
+  DeviceRegistration,
+  Playlist,
+  PlaylistItem,
+  PlaylistGroup,
+  PlaylistSchedule
 };
 
 // Array of models in order of dependency (important for initialization)
@@ -33,7 +41,11 @@ const modelArray = [
   PendingInvitation,
   Device,
   DeviceNetwork, 
-  DeviceRegistration
+  DeviceRegistration,
+  Playlist,
+  PlaylistItem,
+  PlaylistGroup,
+  PlaylistSchedule
 ];
 
 // Define function to initialize models with a Sequelize instance

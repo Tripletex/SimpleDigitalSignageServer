@@ -10,6 +10,8 @@ import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 import setupRoutes from './routes/setupRoutes';
 import tenantRoutes from './routes/tenantRoutes';
+import playlistRoutes from './routes/playlistRoutes';
+import playlistGroupRoutes from './routes/playlistGroupRoutes';
 
 // Services and config
 import sequelize, { testConnection } from './config/database';
@@ -69,6 +71,12 @@ app.use('/api/users', userRoutes);
 
 // - Tenant routes (requires authentication)
 app.use('/api/tenants', isAuthenticated, tenantRoutes);
+
+// - Playlist routes
+app.use('/api', playlistRoutes);
+
+// - Playlist Group routes
+app.use('/api', playlistGroupRoutes);
 
 // - Setup routes
 app.use('/api', setupRoutes);

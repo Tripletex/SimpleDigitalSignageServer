@@ -20,7 +20,11 @@ interface Tenant {
 const Layout: React.FC<LayoutProps> = ({ children, user, handleLogout }) => {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   
-  const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
+  // Initialize from localStorage if available
+  const [currentTenant, setCurrentTenant] = useState<Tenant | null>(() => {
+    const savedTenant = localStorage.getItem('currentTenant');
+    return savedTenant ? JSON.parse(savedTenant) : null;
+  });
   
   // Fetch tenants when component mounts or user changes
   useEffect(() => {
@@ -49,6 +53,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, handleLogout }) => {
               console.error('Still no tenants after force create attempt');
               setTenants([]);
               setCurrentTenant(null);
+              // Also clear localStorage
+              localStorage.removeItem('currentTenant');
               return;
             }
             
@@ -71,6 +77,9 @@ const Layout: React.FC<LayoutProps> = ({ children, user, handleLogout }) => {
               console.log('Selected default tenant after force create:', defaultTenant);
               setCurrentTenant(defaultTenant);
               
+              // Save to localStorage for persistence
+              localStorage.setItem('currentTenant', JSON.stringify(defaultTenant));
+              
               // Dispatch tenant changed event
               const event = new CustomEvent('tenantChanged', { 
                 detail: defaultTenant 
@@ -83,6 +92,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, handleLogout }) => {
             console.error('Error force creating tenant:', forceError);
             setTenants([]);
             setCurrentTenant(null);
+            // Also clear localStorage
+            localStorage.removeItem('currentTenant');
             return;
           }
         }
@@ -98,23 +109,46 @@ const Layout: React.FC<LayoutProps> = ({ children, user, handleLogout }) => {
         
         setTenants(formattedTenants);
         
-        // Set default tenant if none is selected
-        if (formattedTenants.length > 0 && !currentTenant) {
-          console.log('Setting default tenant...');
-          // Prefer personal tenant as default
-          const personalTenant = formattedTenants.find(t => t.isPersonal);
-          const defaultTenant = personalTenant || formattedTenants[0];
-          console.log('Selected default tenant:', defaultTenant);
-          setCurrentTenant(defaultTenant);
+        if (formattedTenants.length > 0) {
+          // Check if current tenant from localStorage still exists in fetched tenants
+          let tenantToUse: Tenant | null = null;
           
-          // Dispatch a custom event for the initial tenant selection
+          if (currentTenant) {
+            const tenantExists = formattedTenants.some(t => t.id === currentTenant.id);
+            if (tenantExists) {
+              // Use the updated tenant data but keep the same ID
+              tenantToUse = formattedTenants.find(t => t.id === currentTenant.id) || null;
+              console.log('Using existing tenant from localStorage:', tenantToUse);
+            } else {
+              console.log('Tenant from localStorage no longer exists, selecting new default');
+              // Tenant no longer exists, fall back to default
+              tenantToUse = null;
+            }
+          }
+          
+          // If we need to select a default tenant
+          if (!tenantToUse) {
+            console.log('Setting default tenant...');
+            // Prefer personal tenant as default
+            const personalTenant = formattedTenants.find(t => t.isPersonal);
+            tenantToUse = personalTenant || formattedTenants[0];
+            console.log('Selected default tenant:', tenantToUse);
+          }
+          
+          // Update current tenant
+          setCurrentTenant(tenantToUse);
+          
+          // Save to localStorage for persistence
+          localStorage.setItem('currentTenant', JSON.stringify(tenantToUse));
+          
+          // Dispatch a custom event for the tenant selection
           try {
             const event = new CustomEvent('tenantChanged', { 
-              detail: defaultTenant 
+              detail: tenantToUse 
             });
             window.dispatchEvent(event);
           } catch (err) {
-            console.error('Error dispatching initial tenant event:', err);
+            console.error('Error dispatching tenant event:', err);
           }
         }
       } catch (error) {
@@ -128,7 +162,11 @@ const Layout: React.FC<LayoutProps> = ({ children, user, handleLogout }) => {
   const handleTenantChange = (tenantId: string) => {
     const selected = tenants.find(t => t.id === tenantId);
     if (selected) {
+      // Save to state
       setCurrentTenant(selected);
+      
+      // Save to localStorage for persistence across page navigation
+      localStorage.setItem('currentTenant', JSON.stringify(selected));
       
       // Dispatch a custom event to notify other components
       try {
