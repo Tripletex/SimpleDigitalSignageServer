@@ -39,7 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const menuItems: MenuItem[] = [
     { name: 'Dashboard', path: '/dashboard', icon: '📊' },
     { name: 'Devices', path: '/devices', icon: '📱' },
-    { name: 'Users', path: '/users', icon: '👥' },
+    { name: 'Playlists', path: '/playlists', icon: '🎞️' },
     { name: 'Organizations', path: '/organizations', icon: '🏢' },
     { name: 'Profile', path: '/profile', icon: '👤' }
   ];
