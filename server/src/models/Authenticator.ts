@@ -54,6 +54,12 @@ export class Authenticator extends Model {
     allowNull: true
   })
   fmt?: string;
+  
+  @Column({
+    type: DataType.STRING,
+    allowNull: true
+  })
+  name?: string;
 
   @CreatedAt
   createdAt!: Date;

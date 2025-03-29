@@ -6,6 +6,15 @@ class UserRoutes {
   private router = express.Router();
   
   constructor() {
+    // User profile routes (for current user)
+    this.router.get('/profile', isAuthenticated, userController.getProfile);
+    this.router.put('/update', isAuthenticated, userController.updateProfile);
+    
+    // Passkey routes
+    this.router.get('/passkeys', isAuthenticated, userController.getPasskeys);
+    this.router.put('/passkeys/:id', isAuthenticated, userController.updatePasskeyName);
+    this.router.delete('/passkeys/:id', isAuthenticated, userController.deletePasskey);
+    
     // Admin only routes
     this.router.get('/', isAuthenticated, isAdmin, userController.getAllUsers);
     this.router.get('/:id', isAuthenticated, isAdmin, userController.getUserById);

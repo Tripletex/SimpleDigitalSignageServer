@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Devices from './pages/Devices';
 import Users from './pages/Users';
 import Organizations from './pages/Organizations';
+import Profile from './pages/Profile';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -104,6 +105,20 @@ function App() {
           element={
             isAuthenticated ? (
               <Organizations 
+                user={user} 
+                setIsAuthenticated={setIsAuthenticated} 
+                setUser={setUser} 
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            isAuthenticated ? (
+              <Profile 
                 user={user} 
                 setIsAuthenticated={setIsAuthenticated} 
                 setUser={setUser} 

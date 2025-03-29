@@ -40,8 +40,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     { name: 'Dashboard', path: '/dashboard', icon: '📊' },
     { name: 'Devices', path: '/devices', icon: '📱' },
     { name: 'Users', path: '/users', icon: '👥' },
-    { name: 'Organizations', path: '/organizations', icon: '🏢' }
-    // Add more menu items as needed
+    { name: 'Organizations', path: '/organizations', icon: '🏢' },
+    { name: 'Profile', path: '/profile', icon: '👤' }
   ];
 
   const toggleSidebar = () => {
