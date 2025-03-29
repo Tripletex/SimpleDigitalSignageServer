@@ -92,13 +92,6 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <div className="sidebar-footer">
-        {!collapsed && (
-          <div className="user-info">
-            <span className="user-name">
-              {user?.displayName || user?.email || 'User'}
-            </span>
-          </div>
-        )}
         <button className="logout-btn" onClick={handleLogout}>
           <span className="logout-icon">🚪</span>
           {!collapsed && <span className="logout-text">Logout</span>}

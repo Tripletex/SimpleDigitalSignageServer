@@ -175,6 +175,12 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, setIsAuthenticated }) 
   };
   
   const confirmDeletePasskey = async (passkeyId: string) => {
+    // Check if this is the only passkey (should be prevented by UI, but double check)
+    if (passwordKeys.length <= 1) {
+      setError('Cannot delete your only passkey');
+      return;
+    }
+    
     if (window.confirm('Are you sure you want to delete this passkey? This action cannot be undone.')) {
       setLoading(true);
       setError(null);
@@ -310,13 +316,23 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, setIsAuthenticated }) 
                             >
                               ✏️
                             </button>
-                            <button
-                              onClick={() => confirmDeletePasskey(key.id)}
-                              className="delete-button"
-                              title="Delete passkey"
-                            >
-                              🗑️
-                            </button>
+                            {passwordKeys.length > 1 ? (
+                              <button
+                                onClick={() => confirmDeletePasskey(key.id)}
+                                className="delete-button"
+                                title="Delete passkey"
+                              >
+                                🗑️
+                              </button>
+                            ) : (
+                              <button
+                                className="delete-button disabled"
+                                title="Cannot delete your only passkey"
+                                disabled
+                              >
+                                🗑️
+                              </button>
+                            )}
                           </div>
                         </div>
                         <span className="passkey-date">
