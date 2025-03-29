@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import deviceService from '../services/deviceService';
+import deviceRepository from '../repositories/deviceRepository';
 import deviceRegistrationService from '../services/deviceRegistrationService';
 import { DeviceData, DeviceRegistrationRequest, DeviceClaimRequest } from '../../../shared/src/deviceData';
 import { handleErrors } from "../helpers/errorHandler";
@@ -46,8 +47,20 @@ class DeviceController {
      * Get all devices with ping data
      */
     public getAllDevices = handleErrors(async (req: Request, res: Response): Promise<void> => {
-        const devices = await deviceService.getDevices();
-        res.status(200).json(devices);
+        // Get raw devices directly from repository to access registrations
+        const devices = await deviceRepository.getDevices();
+        
+        // Map devices with their registration data to include lastSeen and registrationTime
+        const devicesWithRegistrations = devices.map(device => {
+            const registration = device.registrations?.[0];
+            return {
+                deviceData: deviceService.mapDeviceToShared(device),
+                lastSeen: registration?.lastSeen || new Date(),
+                registrationTime: registration?.registrationTime || new Date()
+            };
+        });
+        
+        res.status(200).json(devicesWithRegistrations);
     });
 
     /**
@@ -55,14 +68,17 @@ class DeviceController {
      */
     public getDeviceById = handleErrors(async (req: Request, res: Response): Promise<void> => {
         const { id } = req.params;
-        const device = await deviceService.getDeviceById(id);
+        // Get raw device directly from repository to access registrations
+        const device = await deviceRepository.getDeviceById(id);
         
-        if (!device) {
-            res.status(404).json({ message: 'Device not found' });
-            return;
-        }
+        // Include registration data
+        const deviceWithRegistration = {
+            deviceData: deviceService.mapDeviceToShared(device),
+            lastSeen: device.registrations?.[0]?.lastSeen || new Date(),
+            registrationTime: device.registrations?.[0]?.registrationTime || new Date()
+        };
         
-        res.status(200).json(device);
+        res.status(200).json(deviceWithRegistration);
     });
     
     /**
@@ -84,11 +100,22 @@ class DeviceController {
         
         const { tenantId } = req.params;
         
-        const devices = await deviceService.getDevicesByTenant(tenantId);
+        // Get raw devices directly from repository to access registrations
+        const devices = await deviceRepository.getDevicesByTenant(tenantId);
+        
+        // Map devices with their registration data to include lastSeen and registrationTime
+        const devicesWithRegistrations = devices.map(device => {
+            const registration = device.registrations?.[0];
+            return {
+                deviceData: deviceService.mapDeviceToShared(device),
+                lastSeen: registration?.lastSeen || new Date(),
+                registrationTime: registration?.registrationTime || new Date()
+            };
+        });
         
         res.status(200).json({
             success: true,
-            devices
+            devices: devicesWithRegistrations
         });
     });
     

@@ -11,7 +11,8 @@ import { generateUUID } from '../utils/helpers';
 /**
  * Convert model device to shared DeviceData type
  */
-function mapDeviceToShared(device: Device): DeviceData {
+// Make this function a static method available both on the class and as export
+function mapDeviceToSharedInternal(device: Device): DeviceData {
     // Extract networks data
     const networks = device.networks?.map(network => ({
         name: network.name,
@@ -29,7 +30,12 @@ function mapDeviceToShared(device: Device): DeviceData {
     };
 }
 
+// Export the mapping function for use in controllers
+export const mapDeviceToShared = mapDeviceToSharedInternal;
+
 class DeviceService {
+    // Add as a method for use within the class
+    mapDeviceToShared = mapDeviceToSharedInternal;
     register = async (deviceData: DeviceData) => {
         try {
             // Use the device repository's dedicated method that handles all the device creation logic
@@ -67,18 +73,18 @@ class DeviceService {
 
     getDevices = async () => {
         const devices = await deviceRepository.getDevices();
-        return devices.map(device => mapDeviceToShared(device));
+        return devices.map(device => this.mapDeviceToShared(device));
     }
 
     getDeviceById = async (id: string) => {
         const device = await deviceRepository.getDeviceById(id);
-        return mapDeviceToShared(device);
+        return this.mapDeviceToShared(device);
     }
     
     // Get devices for a specific tenant
     getDevicesByTenant = async (tenantId: string) => {
         const devices = await deviceRepository.getDevicesByTenant(tenantId);
-        return devices.map(device => mapDeviceToShared(device));
+        return devices.map(device => this.mapDeviceToShared(device));
     }
 
     // Claim a device for a tenant
@@ -128,7 +134,7 @@ class DeviceService {
             return {
                 success: true,
                 message: `Device successfully claimed for tenant ${tenantId}`,
-                device: mapDeviceToShared(claimedDevice)
+                device: this.mapDeviceToShared(claimedDevice)
             };
         } catch (error: any) {
             if (error.message?.includes('not found')) {
@@ -187,7 +193,7 @@ class DeviceService {
             return {
                 success: true,
                 message: `Device successfully released from tenant ${tenantId}`,
-                device: mapDeviceToShared(releasedDevice)
+                device: this.mapDeviceToShared(releasedDevice)
             };
         } catch (error: any) {
             if (error.message?.includes('not found')) {

@@ -138,8 +138,13 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
         // Refresh device list
         const fetchDevices = async () => {
           try {
-            const devices = await deviceService.getTenantDevices(currentTenant.id);
-            setDeviceRegistrations(devices);
+            // Make sure tenant still exists
+            if (currentTenant && currentTenant.id) {
+              const devices = await deviceService.getTenantDevices(currentTenant.id);
+              setDeviceRegistrations(devices);
+            } else {
+              console.warn('Cannot refresh devices: tenant is undefined');
+            }
           } catch (err) {
             console.error('Error refreshing devices:', err);
           }
@@ -198,6 +203,11 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
   const getTimeSince = (date: Date): string => {
     return moment(date).fromNow();
   };
+  
+  // Get exact timestamp for tooltip
+  const getExactTimestamp = (date: Date): string => {
+    return moment(date).format("YYYY-MM-DD HH:mm:ss [UTC]Z");
+  };
 
   return (
     <Layout user={user} handleLogout={handleLogout}>
@@ -237,7 +247,10 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
         
         {deviceRegistrations.length > 0 && (
           <div className="devices-grid">
-            <p>Showing {deviceRegistrations.length} device(s) for {currentTenant?.name}</p>
+            <p>Showing {deviceRegistrations.length} device(s) for {currentTenant?.name || 'Unknown Tenant'}</p>
+            <div className="timestamp-note">
+              <span className="timestamp-info">ⓘ</span> Relative times (like "5 minutes ago") update with each page refresh. Hover over timestamps for exact time.
+            </div>
             <div className="table-responsive">
               <table className="App-table">
                 <thead>
@@ -253,30 +266,40 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
                 <tbody>
                   {deviceRegistrations.map((registration) => {
                     const { status, color } = getDeviceStatus(registration.lastSeen);
-                    const displayName = registration.deviceData.displayName || 
-                                       registration.deviceData.name || 
-                                       registration.deviceData.id.substring(0, 8);
+                    
+                    // Safely access deviceData properties with null checks
+                    const displayName = registration.deviceData ? (
+                      registration.deviceData.displayName || 
+                      registration.deviceData.name || 
+                      (registration.deviceData.id ? registration.deviceData.id.substring(0, 8) : 'Unknown')
+                    ) : 'Unknown';
                     return (
-                      <tr key={registration.deviceData.id}>
+                      <tr key={registration.deviceData?.id || `device-${Math.random()}`}>
                         <td>{displayName}</td>
                         <td style={{ color }}>
                           <span className={`status-indicator status-${status.toLowerCase()}`}></span>
                           {status}
                         </td>
                         <td>
-                          {formatDate(registration.lastSeen)}
-                          <div style={{ fontSize: '0.8em', color: '#666' }}>
-                            ({getTimeSince(registration.lastSeen)})
+                          <div title={`Exact time: ${getExactTimestamp(registration.lastSeen)}`}>
+                            {formatDate(registration.lastSeen)}
+                            <div style={{ fontSize: '0.8em', color: '#666' }}>
+                              <span className="relative-time">({getTimeSince(registration.lastSeen)})</span>
+                              <span className="timestamp-info" title="This relative time updates with each refresh">ⓘ</span>
+                            </div>
                           </div>
                         </td>
                         <td>
-                          {formatDate(registration.registrationTime)}
-                          <div style={{ fontSize: '0.8em', color: '#666' }}>
-                            ({getTimeSince(registration.registrationTime)})
+                          <div title={`Exact time: ${getExactTimestamp(registration.registrationTime)}`}>
+                            {formatDate(registration.registrationTime)}
+                            <div style={{ fontSize: '0.8em', color: '#666' }}>
+                              <span className="relative-time">({getTimeSince(registration.registrationTime)})</span>
+                              <span className="timestamp-info" title="This relative time updates with each refresh">ⓘ</span>
+                            </div>
                           </div>
                         </td>
                         <td>
-                          {registration.deviceData.networks?.length ? (
+                          {registration.deviceData?.networks?.length ? (
                             <table className="network-table">
                               <thead>
                                 <tr>
@@ -286,9 +309,9 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
                               </thead>
                               <tbody>
                                 {registration.deviceData.networks.map((network, index) => (
-                                  <tr key={`${registration.deviceData.id}-network-${index}`}>
-                                    <td>{network.name}</td>
-                                    <td>{network.ipAddress.join(', ')}</td>
+                                  <tr key={`${registration.deviceData?.id || 'unknown'}-network-${index}`}>
+                                    <td>{network.name || 'Unknown'}</td>
+                                    <td>{network.ipAddress ? network.ipAddress.join(', ') : 'No IP'}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -299,12 +322,14 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
                         </td>
                         <td>
                           <button className="action-button edit">Configure</button>
-                          <button 
-                            className="action-button delete"
-                            onClick={() => handleReleaseDevice(registration.deviceData.id)}
-                          >
-                            Release
-                          </button>
+                          {registration.deviceData?.id && (
+                            <button 
+                              className="action-button delete"
+                              onClick={() => handleReleaseDevice(registration.deviceData.id)}
+                            >
+                              Release
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -320,7 +345,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
           <div className="modal-overlay">
             <div className="modal-content">
               <div className="modal-header">
-                <h2>Claim Device for {currentTenant?.name}</h2>
+                <h2>Claim Device for {currentTenant?.name || 'Unknown Tenant'}</h2>
                 <button 
                   className="modal-close"
                   onClick={() => {

@@ -46,6 +46,17 @@ export interface DeviceClaimResponse {
 }
 
 /**
+ * Parse dates in the device registration data
+ */
+const parseDates = (data: any): DeviceRegistration[] => {
+  return data.map((item: any) => ({
+    ...item,
+    registrationTime: item.registrationTime ? new Date(item.registrationTime) : new Date(),
+    lastSeen: item.lastSeen ? new Date(item.lastSeen) : new Date()
+  }));
+};
+
+/**
  * Get all devices for the current user
  */
 export const getAllDevices = async (): Promise<DeviceRegistration[]> => {
@@ -53,7 +64,8 @@ export const getAllDevices = async (): Promise<DeviceRegistration[]> => {
   if (!response.ok) {
     throw new Error(`Failed to get devices: ${response.status}`);
   }
-  return await response.json();
+  const data = await response.json();
+  return parseDates(data);
 };
 
 /**
@@ -66,7 +78,7 @@ export const getTenantDevices = async (tenantId: string): Promise<DeviceRegistra
   }
   
   const data = await response.json();
-  return data.devices || [];
+  return parseDates(data.devices || []);
 };
 
 /**
@@ -125,5 +137,11 @@ export const getDeviceById = async (id: string): Promise<DeviceRegistration> => 
   if (!response.ok) {
     throw new Error(`Failed to get device: ${response.status}`);
   }
-  return await response.json();
+  const data = await response.json();
+  // Parse date fields
+  return {
+    ...data,
+    registrationTime: data.registrationTime ? new Date(data.registrationTime) : new Date(),
+    lastSeen: data.lastSeen ? new Date(data.lastSeen) : new Date()
+  };
 };

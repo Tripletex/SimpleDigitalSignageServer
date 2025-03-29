@@ -222,6 +222,37 @@
   cursor: not-allowed;
 }
 
+/* Timestamp display */
+.relative-time {
+  margin-right: 4px;
+}
+
+.timestamp-info {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  border-radius: 50%;
+  background-color: #7f8c8d;
+  color: white;
+  font-size: 10px;
+  cursor: help;
+  margin-left: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.timestamp-note {
+  margin-top: 8px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  color: #666;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .devices-header {
