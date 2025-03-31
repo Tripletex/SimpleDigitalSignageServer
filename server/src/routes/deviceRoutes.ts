@@ -36,6 +36,9 @@ class DeviceRoutes {
     // Release a device from a tenant
     this.router.delete('/tenant/:tenantId/devices/:deviceId', deviceController.releaseDevice);
     
+    // Assign a campaign to a device
+    this.router.post('/tenant/:tenantId/devices/:deviceId/campaign', deviceController.assignCampaign);
+    
     // Get a specific device by ID
     // IMPORTANT: This must be after the other routes to avoid conflicts
     this.router.get('/:id', deviceController.getDeviceById);

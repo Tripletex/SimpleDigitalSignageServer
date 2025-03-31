@@ -5,6 +5,7 @@ import moment from 'moment';
 import '../styles/Devices.css';
 import { DeviceRegistration } from '../services/deviceService';
 import * as deviceService from '../services/deviceService';
+import * as playlistGroupService from '../services/playlistGroupService';
 
 interface DeviceProps {
   user: any;
@@ -20,6 +21,12 @@ interface Tenant {
   role: string;
 }
 
+interface Campaign {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, currentTenant: propCurrentTenant }) => {
   const [deviceRegistrations, setDeviceRegistrations] = useState<DeviceRegistration[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -31,6 +38,12 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(propCurrentTenant || null);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [showCampaignModal, setShowCampaignModal] = useState<boolean>(false);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const [selectedDeviceName, setSelectedDeviceName] = useState<string>('');
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
+  const [assigningCampaign, setAssigningCampaign] = useState<boolean>(false);
   const navigate = useNavigate();
 
   // Update currentTenant state when prop changes
@@ -83,7 +96,28 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
       }
     };
 
+    const fetchCampaigns = async () => {
+      if (!currentTenant) return;
+      
+      try {
+        const result = await playlistGroupService.getPlaylistGroupsByTenant(currentTenant.id);
+        if (result.success) {
+          // Map to simpler interface for dropdown
+          const campaignsList = result.playlistGroups.map(group => ({
+            id: group.id,
+            name: group.name,
+            description: group.description
+          }));
+          setCampaigns(campaignsList);
+        }
+      } catch (err) {
+        console.error('Error fetching campaigns:', err);
+        // Don't show error to user since this is a background operation
+      }
+    };
+
     fetchDevices();
+    fetchCampaigns();
     
     // Poll for updates every 30 seconds
     const interval = setInterval(fetchDevices, 30000);
@@ -170,12 +204,45 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
     }
 
     try {
+      // Set loading state to prevent double-clicks
+      setLoading(true);
+      
       // Call the API to release the device
       const result = await deviceService.releaseDevice(currentTenant.id, deviceId);
       
-      // Refresh the device list
-      const devices = await deviceService.getTenantDevices(currentTenant.id);
-      setDeviceRegistrations(devices);
+      // Immediately filter out the released device from the local state
+      setDeviceRegistrations(prevDevices => 
+        prevDevices.filter(device => device.deviceData?.id !== deviceId)
+      );
+      
+      // Add a longer delay before refreshing to ensure the database has fully updated
+      setTimeout(async () => {
+        try {
+          // Refresh the device list from the server
+          const devices = await deviceService.getTenantDevices(currentTenant.id);
+          setDeviceRegistrations(devices);
+          console.log("Refreshed devices after release:", devices);
+          
+          // Check if the device is still in the list
+          const deviceStillExists = devices.some(device => device.deviceData?.id === deviceId);
+          if (deviceStillExists) {
+            console.warn(`Device ${deviceId} still in list after release. This might indicate a database issue.`);
+            // Try to refresh one more time after a longer delay
+            setTimeout(async () => {
+              try {
+                const refreshedDevices = await deviceService.getTenantDevices(currentTenant.id);
+                setDeviceRegistrations(refreshedDevices);
+              } catch (e) {
+                console.error("Error in secondary refresh:", e);
+              }
+            }, 2000);
+          }
+        } catch (err) {
+          console.error("Error refreshing devices after release:", err);
+        } finally {
+          setLoading(false);
+        }
+      }, 1000); // Increased delay for better reliability
       
       // Show success message
       setError(null);
@@ -190,37 +257,78 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
       setError(`Error releasing device: ${err instanceof Error ? err.message : String(err)}`);
       setSuccessMessage(null);
       console.error('Error releasing device:', err);
+      setLoading(false);
     }
   };
   
   const handleConfigureDevice = async (deviceId: string, deviceName: string) => {
-    // This is a placeholder for future implementation
-    // In a real implementation, this would open a configuration modal or navigate to a device configuration page
-    
     if (!currentTenant) {
       setError('No tenant selected. Please select a tenant from the dropdown.');
       setSuccessMessage(null);
       return;
     }
     
+    // Open the campaign assignment modal
+    setSelectedDeviceId(deviceId);
+    setSelectedDeviceName(deviceName);
+    
+    // Look up the device's current campaign
+    const device = deviceRegistrations.find(reg => reg.deviceData?.id === deviceId);
+    if (device && device.deviceData?.campaignId) {
+      setSelectedCampaignId(device.deviceData.campaignId);
+    } else {
+      setSelectedCampaignId('');
+    }
+    
+    setShowCampaignModal(true);
+  };
+  
+  const handleAssignCampaign = async () => {
+    if (!currentTenant) {
+      setError('No tenant selected. Please select a tenant from the dropdown.');
+      return;
+    }
+    
+    if (!selectedDeviceId) {
+      setError('No device selected.');
+      return;
+    }
+    
     try {
-      // For now, just show an alert
-      setError(null);
-      // Instead of an alert, show a success message
-      setSuccessMessage(`Configuration for device '${deviceName}' will be implemented in a future update`);
+      setAssigningCampaign(true);
       
-      // Clear the message after 3 seconds
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 3000);
+      // Convert empty string to null for removing assignment
+      const campaignId = selectedCampaignId || null;
       
-      // You could also navigate to a device configuration page:
-      // navigate(`/devices/${deviceId}/configure`);
+      const result = await deviceService.assignCampaign(
+        currentTenant.id,
+        selectedDeviceId,
+        campaignId
+      );
       
+      if (result.success) {
+        // Close the modal
+        setShowCampaignModal(false);
+        
+        // Show success message
+        setSuccessMessage(result.message || 'Campaign successfully assigned to device');
+        
+        // Refresh device list to show the new assignment
+        const devices = await deviceService.getTenantDevices(currentTenant.id);
+        setDeviceRegistrations(devices);
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 3000);
+      } else {
+        setError(result.message || 'Failed to assign campaign');
+      }
     } catch (err) {
-      setError(`Error configuring device: ${err instanceof Error ? err.message : String(err)}`);
-      setSuccessMessage(null);
-      console.error('Error configuring device:', err);
+      setError(`Error assigning campaign: ${err instanceof Error ? err.message : String(err)}`);
+      console.error('Error assigning campaign:', err);
+    } finally {
+      setAssigningCampaign(false);
     }
   };
 
@@ -303,6 +411,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
                   <tr>
                     <th>Device Name</th>
                     <th>Status</th>
+                    <th>Campaign</th>
                     <th>Last Seen</th>
                     <th>Registration Time</th>
                     <th>Networks</th>
@@ -319,6 +428,12 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
                       registration.deviceData.name || 
                       (registration.deviceData.id ? registration.deviceData.id.substring(0, 8) : 'Unknown')
                     ) : 'Unknown';
+                    // Find campaign name if assigned
+                    const campaignId = registration.deviceData?.campaignId;
+                    const campaignName = campaignId 
+                      ? campaigns.find(c => c.id === campaignId)?.name || 'Unknown Campaign' 
+                      : 'None';
+                    
                     return (
                       <tr key={registration.deviceData?.id || `device-${Math.random()}`}>
                         <td>{displayName}</td>
@@ -326,6 +441,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
                           <span className={`status-indicator status-${status.toLowerCase()}`}></span>
                           {status}
                         </td>
+                        <td>{campaignName}</td>
                         <td>
                           <div title={`Exact time: ${getExactTimestamp(registration.lastSeen)}`}>
                             {formatDate(registration.lastSeen)}
@@ -468,6 +584,74 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
                   disabled={!!claimSuccess}
                 >
                   Claim Device
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Assign Campaign Modal */}
+        {showCampaignModal && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h2>Assign Campaign to Device</h2>
+                <button 
+                  className="modal-close"
+                  onClick={() => {
+                    setShowCampaignModal(false);
+                    setError(null);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="modal-body">
+                <p>Configure which campaign should be displayed on <strong>{selectedDeviceName}</strong>:</p>
+                
+                <div className="form-group">
+                  <label htmlFor="campaign-selection">Select Campaign:</label>
+                  <select
+                    id="campaign-selection"
+                    className="form-input"
+                    value={selectedCampaignId}
+                    onChange={(e) => setSelectedCampaignId(e.target.value)}
+                  >
+                    <option value="">No Campaign (Clear Assignment)</option>
+                    {campaigns.map(campaign => (
+                      <option key={campaign.id} value={campaign.id}>
+                        {campaign.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {campaigns.length === 0 && (
+                  <p className="notification-message">
+                    No campaigns available. <a href="/campaigns">Create a campaign</a> first.
+                  </p>
+                )}
+                
+                {error && (
+                  <p className="error-message">{error}</p>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button 
+                  className="cancel-button"
+                  onClick={() => {
+                    setShowCampaignModal(false);
+                    setError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="assign-button"
+                  onClick={handleAssignCampaign}
+                  disabled={assigningCampaign}
+                >
+                  {assigningCampaign ? 'Assigning...' : 'Assign Campaign'}
                 </button>
               </div>
             </div>

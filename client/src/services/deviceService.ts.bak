@@ -1,0 +1,140 @@
+// Client-side device service for interacting with device APIs
+import { 
+  DeviceData, 
+  DeviceRegistration, 
+  DeviceRegistrationRequest,
+  DeviceClaimRequest, 
+  DeviceClaimResponse,
+  DeviceCampaignAssignmentRequest,
+  DeviceCampaignAssignmentResponse
+} from './deviceTypes';
+
+/**
+ * Parse dates in the device registration data
+ */
+const parseDates = (data: any): DeviceRegistration[] => {
+  return data.map((item: any) => ({
+    ...item,
+    registrationTime: item.registrationTime ? new Date(item.registrationTime) : new Date(),
+    lastSeen: item.lastSeen ? new Date(item.lastSeen) : new Date()
+  }));
+};
+
+/**
+ * Get all devices for the current user
+ */
+export const getAllDevices = async (): Promise<DeviceRegistration[]> => {
+  const response = await fetch('/api/device/list');
+  if (!response.ok) {
+    throw new Error(`Failed to get devices: ${response.status}`);
+  }
+  const data = await response.json();
+  return parseDates(data);
+};
+
+/**
+ * Get devices for a specific tenant
+ */
+export const getTenantDevices = async (tenantId: string): Promise<DeviceRegistration[]> => {
+  const response = await fetch(`/api/device/tenant/${tenantId}/devices`);
+  if (!response.ok) {
+    throw new Error(`Failed to get tenant devices: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  return parseDates(data.devices || []);
+};
+
+/**
+ * Claim a device for a tenant
+ */
+export const claimDevice = async (
+  tenantId: string,
+  deviceId: string,
+  displayName?: string
+): Promise<DeviceClaimResponse> => {
+  const claimRequest: DeviceClaimRequest = {
+    deviceId,
+    displayName
+  };
+  
+  const response = await fetch(`/api/device/tenant/${tenantId}/claim`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(claimRequest),
+  });
+  
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || `Failed to claim device: ${response.status}`);
+  }
+  
+  return data;
+};
+
+/**
+ * Release a device from a tenant
+ */
+export const releaseDevice = async (
+  tenantId: string,
+  deviceId: string
+): Promise<DeviceClaimResponse> => {
+  const response = await fetch(`/api/device/tenant/${tenantId}/devices/${deviceId}`, {
+    method: 'DELETE',
+  });
+  
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || `Failed to release device: ${response.status}`);
+  }
+  
+  return data;
+};
+
+/**
+ * Get a specific device by ID
+ */
+export const getDeviceById = async (id: string): Promise<DeviceRegistration> => {
+  const response = await fetch(`/api/device/${id}`);
+  if (!response.ok) {
+    throw new Error(`Failed to get device: ${response.status}`);
+  }
+  const data = await response.json();
+  // Parse date fields
+  return {
+    ...data,
+    registrationTime: data.registrationTime ? new Date(data.registrationTime) : new Date(),
+    lastSeen: data.lastSeen ? new Date(data.lastSeen) : new Date()
+  };
+};
+
+/**
+ * Assign a campaign to a device
+ */
+export const assignCampaign = async (
+  tenantId: string,
+  deviceId: string,
+  campaignId: string | null
+): Promise<any> => {
+  const assignRequest: DeviceCampaignAssignmentRequest = {
+    deviceId,
+    campaignId
+  };
+  
+  const response = await fetch(`/api/device/tenant/${tenantId}/devices/${deviceId}/campaign`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(assignRequest),
+  });
+  
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || `Failed to assign campaign to device: ${response.status}`);
+  }
+  
+  return data;
+};

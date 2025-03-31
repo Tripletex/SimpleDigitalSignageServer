@@ -3,6 +3,7 @@ import { User } from './User';
 import { Tenant } from './Tenant';
 import { DeviceNetwork } from './DeviceNetwork';
 import { DeviceRegistration } from './DeviceRegistration';
+import { PlaylistGroup } from './PlaylistGroup';
 import { generateUUID } from '../utils/helpers';
 
 @Table({
@@ -46,6 +47,13 @@ export class Device extends Model {
     allowNull: true
   })
   displayName?: string;
+  
+  @ForeignKey(() => PlaylistGroup)
+  @Column({
+    type: DataType.UUID,
+    allowNull: true
+  })
+  campaignId?: string;
 
   @CreatedAt
   createdAt!: Date;
@@ -59,6 +67,9 @@ export class Device extends Model {
 
   @BelongsTo(() => User, 'claimedById')
   claimedBy?: User;
+  
+  @BelongsTo(() => PlaylistGroup, 'campaignId')
+  campaign?: PlaylistGroup;
 
   @HasMany(() => DeviceNetwork)
   networks?: DeviceNetwork[];

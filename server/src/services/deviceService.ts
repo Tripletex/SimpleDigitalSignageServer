@@ -1,5 +1,5 @@
 // services/deviceService.ts
-import { DeviceData, DeviceClaimResponse } from '../../../shared/src/deviceData';
+import {DeviceData, DeviceClaimResponse, DeviceCampaignAssignmentResponse} from '../../../shared/src/deviceData';
 import deviceRepository from '../repositories/deviceRepository';
 import tenantRepository from '../repositories/tenantRepository';
 import { TenantRole } from '../../../shared/src/tenantData';
@@ -26,7 +26,8 @@ function mapDeviceToSharedInternal(device: Device): DeviceData {
         tenantId: device.tenantId,
         claimedBy: device.claimedById,
         claimedAt: device.claimedAt,
-        displayName: device.displayName
+        displayName: device.displayName,
+        campaignId: device.campaignId
     };
 }
 
@@ -49,7 +50,18 @@ class DeviceService {
 
     updateLastSeen = async (deviceData: DeviceData) => {
         try {
-            // Use the device repository's dedicated method that handles all the update logic
+            // First, check if the device exists
+            const device = await deviceRepository.getDeviceById(deviceData.id);
+            
+            // Only allow updates for claimed devices
+            if (!device.tenantId) {
+                return {
+                    message: 'Device ping received, but device is not claimed',
+                    unclaimed: true
+                };
+            }
+            
+            // For claimed devices, use the repository's dedicated method to update last seen
             const updatedDevice = await deviceRepository.updateLastSeen(deviceData);
             
             // Get the latest registration for the device
@@ -60,12 +72,12 @@ class DeviceService {
                 lastSeen: registration?.lastSeen || new Date()
             };
         } catch (error: any) {
-            // If the device doesn't exist, register it
+            // If the device doesn't exist, throw a specific error
             if (error.message?.includes('not found')) {
-                return this.register(deviceData);
+                throw new Error(`Device with ID ${deviceData.id} not registered. Please register the device first.`);
             }
             
-            // Otherwise, re-throw the error
+            // Otherwise, re-throw the general error
             console.error('Error updating device last seen:', error);
             throw new Error(`Failed to update device last seen: ${error.message || 'Unknown error'}`);
         }
@@ -73,6 +85,11 @@ class DeviceService {
 
     getDevices = async () => {
         const devices = await deviceRepository.getDevices();
+        return devices.map(device => this.mapDeviceToShared(device));
+    }
+    
+    getClaimedDevices = async () => {
+        const devices = await deviceRepository.getClaimedDevices();
         return devices.map(device => this.mapDeviceToShared(device));
     }
 
@@ -207,6 +224,88 @@ class DeviceService {
             return {
                 success: false,
                 message: `Failed to release device: ${error.message || 'Unknown error'}`
+            };
+        }
+    }
+    
+    // Assign a campaign to a device
+    assignCampaign = async (
+        deviceId: string,
+        campaignId: string | null,
+        tenantId: string,
+        userId: string
+    ): Promise<DeviceCampaignAssignmentResponse> => {
+        try {
+            // Check if the device exists
+            const device = await deviceRepository.getDeviceById(deviceId);
+            
+            // Check if the device is claimed by this tenant
+            if (device.tenantId !== tenantId) {
+                return {
+                    success: false,
+                    message: `Device is not claimed by tenant ${tenantId}`
+                };
+            }
+            
+            // Check if the user has permission to configure devices for this tenant
+            const membership = await tenantRepository.getTenantMember(tenantId, userId);
+            if (!membership) {
+                return {
+                    success: false,
+                    message: `User is not a member of tenant ${tenantId}`
+                };
+            }
+            
+            // Only owners and admins can configure devices
+            if (membership.role !== TenantRole.OWNER && membership.role !== TenantRole.ADMIN) {
+                return {
+                    success: false,
+                    message: `User does not have permission to configure devices for tenant ${tenantId}`
+                };
+            }
+            
+            // If campaign is provided, verify it exists and belongs to the tenant
+            if (campaignId) {
+                try {
+                    const campaign = await import('../repositories/playlistGroupRepository')
+                        .then(module => module.default.getPlaylistGroupById(campaignId));
+                    
+                    if (campaign.tenantId !== tenantId) {
+                        return {
+                            success: false,
+                            message: `Campaign with ID ${campaignId} does not belong to this tenant`
+                        };
+                    }
+                } catch (error) {
+                    return {
+                        success: false,
+                        message: `Campaign with ID ${campaignId} not found`
+                    };
+                }
+            }
+            
+            // Update the device with the campaign assignment
+            const updatedDevice = await deviceRepository.assignCampaign(deviceId, campaignId);
+            
+            return {
+                success: true,
+                message: campaignId 
+                    ? `Campaign successfully assigned to device` 
+                    : `Campaign successfully removed from device`,
+                device: this.mapDeviceToShared(updatedDevice)
+            };
+        } catch (error: any) {
+            if (error.message?.includes('not found')) {
+                return {
+                    success: false,
+                    message: `Device with ID ${deviceId} not found`
+                };
+            }
+            
+            console.error('Error assigning campaign to device:', error);
+            return {
+                success: false,
+                message: `Failed to assign campaign: ${error.message || 'Unknown error'}`
             };
         }
     }

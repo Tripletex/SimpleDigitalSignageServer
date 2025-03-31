@@ -2,12 +2,18 @@ import { Request, Response } from 'express';
 import deviceService from '../services/deviceService';
 import deviceRepository from '../repositories/deviceRepository';
 import deviceRegistrationService from '../services/deviceRegistrationService';
-import { DeviceData, DeviceRegistrationRequest, DeviceClaimRequest } from '../../../shared/src/deviceData';
+import sequelize from '../config/database';
+import { 
+    DeviceData, 
+    DeviceRegistrationRequest, 
+    DeviceClaimRequest,
+    DeviceCampaignAssignmentRequest 
+} from '../../../shared/src/deviceData';
 import { handleErrors } from "../helpers/errorHandler";
 import { validateAndConvert } from '../validators/validate';
 import { deviceDataSchema } from '../validators/deviceDataValidator';
 import { deviceRegistrationRequestSchema } from '../validators/deviceRegistrationValidator';
-import { deviceClaimSchema } from '../validators/deviceRegistrationValidator';
+import { deviceClaimSchema, deviceCampaignAssignmentSchema } from '../validators/deviceRegistrationValidator';
 
 class DeviceController {
     /**
@@ -39,6 +45,7 @@ class DeviceController {
             return;
         }
         
+        // The updateLastSeen service method now handles checking if the device is claimed
         const result = await deviceService.updateLastSeen(deviceData);
         res.status(200).json(result);
     });
@@ -47,8 +54,13 @@ class DeviceController {
      * Get all devices with ping data
      */
     public getAllDevices = handleErrors(async (req: Request, res: Response): Promise<void> => {
+        // Check if we should only return claimed devices (default to true for security)
+        const onlyClaimed = req.query.onlyClaimed !== 'false';
+        
         // Get raw devices directly from repository to access registrations
-        const devices = await deviceRepository.getDevices();
+        const devices = onlyClaimed 
+            ? await deviceRepository.getClaimedDevices() 
+            : await deviceRepository.getDevices();
         
         // Map devices with their registration data to include lastSeen and registrationTime
         const devicesWithRegistrations = devices.map(device => {
@@ -155,9 +167,124 @@ class DeviceController {
         }
         
         const { tenantId, deviceId } = req.params;
+        console.log(`[RELEASE DEVICE] Releasing device ${deviceId} from tenant ${tenantId}`);
         
+        // First check if device exists and belongs to this tenant
+        try {
+            const device = await deviceRepository.getDeviceById(deviceId);
+            console.log(`[RELEASE DEVICE] Current device state:`, {
+                deviceId: device.id,
+                tenantId: device.tenantId,
+                claimedById: device.claimedById
+            });
+            
+            if (device.tenantId !== tenantId) {
+                console.log(`[RELEASE DEVICE] Device does not belong to tenant ${tenantId}`);
+                res.status(400).json({ 
+                    success: false, 
+                    message: `Device does not belong to tenant ${tenantId}` 
+                });
+                return;
+            }
+        } catch (error) {
+            console.log(`[RELEASE DEVICE] Error getting device:`, error);
+            res.status(404).json({ 
+                success: false, 
+                message: `Device not found: ${error instanceof Error ? error.message : String(error)}` 
+            });
+            return;
+        }
+        
+        // Proceed with release
         const result = await deviceService.releaseDevice(
             deviceId,
+            tenantId,
+            req.user.id
+        );
+        
+        // Log the result for debugging
+        console.log(`[RELEASE DEVICE] Release result:`, result);
+        
+        if (result.success) {
+            // Double-check the device state after release
+            try {
+                const device = await deviceRepository.getDeviceById(deviceId);
+                console.log(`[RELEASE DEVICE] Device state after release:`, {
+                    deviceId: device.id,
+                    tenantId: device.tenantId,
+                    claimedById: device.claimedById
+                });
+                
+                // If the tenantId is still set, something went wrong
+                if (device.tenantId) {
+                    console.log(`[RELEASE DEVICE] WARNING: Device still has tenantId after release!`);
+                    
+                    // Force update the device directly as a fallback
+                    const forceResult = await deviceRepository.forceReleaseDevice(deviceId);
+                    console.log(`[RELEASE DEVICE] Force release result: ${forceResult ? 'Success' : 'Failed'}`);
+                    
+                    // Verify the force update worked
+                    const updatedDevice = await deviceRepository.getDeviceById(deviceId);
+                    console.log(`[RELEASE DEVICE] Device state after force release:`, {
+                        deviceId: updatedDevice.id,
+                        tenantId: updatedDevice.tenantId,
+                        claimedById: updatedDevice.claimedById
+                    });
+                    
+                    // If the device still has a tenantId, something is seriously wrong
+                    if (updatedDevice.tenantId) {
+                        console.log(`[RELEASE DEVICE] CRITICAL ERROR: Device still has tenantId after force release!`);
+                        // Try one more approach: direct SQL query without Sequelize
+                        try {
+                            // Use imported sequelize instance for direct SQL query 
+                            // (SQL NULL is used here since it's raw SQL, not TypeScript)
+                            await sequelize.query(
+                                `UPDATE devices SET tenant_id = NULL, claimed_by_id = NULL, claimed_at = NULL, display_name = NULL, campaign_id = NULL WHERE id = :deviceId`,
+                                { replacements: { deviceId } }
+                            );
+                            console.log(`[RELEASE DEVICE] Executed direct SQL query as last resort`);
+                        } catch (sqlError) {
+                            console.error(`[RELEASE DEVICE] Error executing direct SQL:`, sqlError);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log(`[RELEASE DEVICE] Error checking device after release:`, error);
+            }
+            
+            res.status(200).json(result);
+        } else {
+            res.status(400).json(result);
+        }
+    });
+
+    /**
+     * Assign a campaign to a device
+     */
+    public assignCampaign = handleErrors(async (req: Request, res: Response): Promise<void> => {
+        if (!req.user) {
+            res.status(401).json({ success: false, message: 'Authentication required' });
+            return;
+        }
+        
+        const { tenantId, deviceId } = req.params;
+        const assignmentRequest = await validateAndConvert<DeviceCampaignAssignmentRequest>(
+            req, 
+            deviceCampaignAssignmentSchema
+        );
+        
+        // Make sure the device ID in the path matches the one in the body
+        if (deviceId !== assignmentRequest.deviceId) {
+            res.status(400).json({ 
+                success: false, 
+                message: 'Device ID in path does not match device ID in request body' 
+            });
+            return;
+        }
+        
+        const result = await deviceService.assignCampaign(
+            deviceId,
+            assignmentRequest.campaignId,
             tenantId,
             req.user.id
         );

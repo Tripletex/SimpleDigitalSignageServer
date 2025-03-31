@@ -22,11 +22,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setIsAuthenticated, setUser
     const fetchDevices = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/device/list');
+        const response = await fetch('/api/device/list?onlyClaimed=true');
         if (!response.ok) {
           throw new Error(`Failed to fetch devices: ${response.status}`);
         }
         const data = await response.json();
+        
         setDeviceRegistrations(data);
         setError(null);
       } catch (err) {
@@ -119,14 +120,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setIsAuthenticated, setUser
   return (
     <Layout user={user} handleLogout={handleLogout}>
       <div className="dashboard-container">
-        <h1>Device Dashboard</h1>
+        <h1>Claimed Devices Dashboard</h1>
         
         {loading && <p>Loading devices...</p>}
         {error && <p className="error-message">{error}</p>}
         
         {!loading && !error && deviceRegistrations.length === 0 && (
           <div className="empty-dashboard">
-            <p>No devices registered yet.</p>
+            <p>No devices found.</p>
           </div>
         )}
         

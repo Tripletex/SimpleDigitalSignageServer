@@ -77,15 +77,46 @@ class PlaylistRepository {
 
       // Add items if provided
       if (playlistData.items && playlistData.items.length > 0) {
-        // Create items with positions
-        const itemsWithPositions = playlistData.items.map((item, index) => ({
-          id: generateUUID(),
-          playlistId: playlist.id,
-          position: index,
-          type: item.type,
-          url: item.url,
-          duration: item.duration
-        }));
+        // Process items and validate URL structure before saving
+        const itemsWithPositions = playlistData.items.map((item, index) => {
+          // Create base item
+          const newItem = {
+            id: generateUUID(),
+            playlistId: playlist.id,
+            position: index,
+            type: item.type,
+            duration: item.duration
+          };
+          
+          // Handle URL objects specifically to ensure they have the correct format
+          if (item.type === 'URL' || item.type === 'IMAGE' || item.type === 'YOUTUBE') {
+            try {
+              // Ensure url property exists and has correct structure
+              if (!item.url || !item.url.location) {
+                throw new Error(`URL object missing or invalid for item at position ${index}`);
+              }
+              
+              // Verify URL is valid by constructing a URL object
+              new URL(item.url.location);
+              
+              // Add URL to item with validated structure
+              return {
+                ...newItem,
+                url: { location: item.url.location } // Ensure clean object structure
+              };
+            } catch (error) {
+              // Re-throw with more specific error message
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              throw new Error(`Invalid URL for item at position ${index}: ${errorMessage}`);
+            }
+          }
+          
+          // For non-URL types
+          return {
+            ...newItem,
+            url: item.url // Keep as is for other types
+          };
+        });
 
         await PlaylistItem.bulkCreate(itemsWithPositions, { transaction });
       }
@@ -133,14 +164,46 @@ class PlaylistRepository {
 
         // Create new items with positions
         if (playlistData.items.length > 0) {
-          const itemsWithPositions = playlistData.items.map((item, index) => ({
-            id: generateUUID(),
-            playlistId: id,
-            position: index,
-            type: item.type,
-            url: item.url,
-            duration: item.duration
-          }));
+          // Process items and validate URL structure before saving
+          const itemsWithPositions = playlistData.items.map((item, index) => {
+            // Create base item
+            const newItem = {
+              id: generateUUID(),
+              playlistId: id,
+              position: index,
+              type: item.type,
+              duration: item.duration
+            };
+            
+            // Handle URL objects specifically to ensure they have the correct format
+            if (item.type === 'URL' || item.type === 'IMAGE' || item.type === 'YOUTUBE') {
+              try {
+                // Ensure url property exists and has correct structure
+                if (!item.url || !item.url.location) {
+                  throw new Error(`URL object missing or invalid for item at position ${index}`);
+                }
+                
+                // Verify URL is valid by constructing a URL object
+                new URL(item.url.location);
+                
+                // Add URL to item with validated structure
+                return {
+                  ...newItem,
+                  url: { location: item.url.location } // Ensure clean object structure
+                };
+              } catch (error) {
+                // Re-throw with more specific error message
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                throw new Error(`Invalid URL for item at position ${index}: ${errorMessage}`);
+              }
+            }
+            
+            // For non-URL types
+            return {
+              ...newItem,
+              url: item.url // Keep as is for other types
+            };
+          });
 
           await PlaylistItem.bulkCreate(itemsWithPositions, { transaction });
         }
@@ -207,15 +270,39 @@ class PlaylistRepository {
 
     const position = maxPositionItem ? maxPositionItem.position + 1 : 0;
 
-    // Create the new item
-    const item = await PlaylistItem.create({
+    // Prepare item data based on type
+    let itemToCreate: any = {
       id: generateUUID(),
       playlistId,
       position,
       type: itemData.type,
-      url: itemData.url,
       duration: itemData.duration
-    });
+    };
+
+    // Handle URL objects specifically to ensure they have the correct format
+    if (itemData.type === 'URL' || itemData.type === 'IMAGE' || itemData.type === 'YOUTUBE') {
+      // Validate URL structure
+      if (!itemData.url || !itemData.url.location) {
+        throw new Error('URL object missing or invalid');
+      }
+      
+      try {
+        // Verify URL is valid
+        new URL(itemData.url.location);
+        
+        // Set URL with clean structure
+        itemToCreate.url = { location: itemData.url.location };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`Invalid URL: ${errorMessage}`);
+      }
+    } else {
+      // For non-URL types, keep URL as is
+      itemToCreate.url = itemData.url;
+    }
+
+    // Create the new item
+    const item = await PlaylistItem.create(itemToCreate);
 
     return item;
   }
@@ -229,11 +316,37 @@ class PlaylistRepository {
       throw new Error(`Playlist item with ID ${itemId} not found`);
     }
 
-    // Update item properties
+    // Update basic properties
     if (itemData.type) item.type = itemData.type;
-    if (itemData.url) item.url = itemData.url;
     if (itemData.duration) item.duration = itemData.duration;
     if (itemData.position !== undefined) item.position = itemData.position;
+    
+    // Handle URL update specifically
+    if (itemData.url) {
+      // For URL-type items, ensure URL has correct structure
+      if (itemData.type === 'URL' || itemData.type === 'IMAGE' || itemData.type === 'YOUTUBE' || 
+          item.type === 'URL' || item.type === 'IMAGE' || item.type === 'YOUTUBE') {
+        
+        // Validate URL structure
+        if (!itemData.url.location) {
+          throw new Error('URL object missing location property');
+        }
+        
+        try {
+          // Verify URL is valid
+          new URL(itemData.url.location);
+          
+          // Set URL with clean structure
+          item.url = { location: itemData.url.location };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          throw new Error(`Invalid URL: ${errorMessage}`);
+        }
+      } else {
+        // For non-URL types, keep URL as is
+        item.url = itemData.url;
+      }
+    }
 
     await item.save();
     return item;

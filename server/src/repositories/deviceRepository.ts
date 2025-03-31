@@ -148,11 +148,43 @@ class DeviceRepository {
   }
   
   /**
+   * Get all claimed devices (devices with tenantId)
+   */
+  async getClaimedDevices(): Promise<Device[]> {
+    return await Device.findAll({
+      where: {
+        tenantId: {
+          [Op.not]: null
+        }
+      },
+      include: [
+        {
+          model: DeviceNetwork,
+          as: 'networks'
+        },
+        {
+          model: DeviceRegistration,
+          as: 'registrations'
+        },
+        {
+          model: Tenant
+        },
+        {
+          model: User,
+          as: 'claimedBy'
+        }
+      ]
+    });
+  }
+  
+  /**
    * Get devices for a specific tenant
    */
   async getDevicesByTenant(tenantId: string): Promise<Device[]> {
     return await Device.findAll({
-      where: { tenantId },
+      where: { 
+        tenantId: tenantId  // This should be the exact tenant ID
+      },
       include: [
         {
           model: DeviceNetwork,
@@ -213,6 +245,79 @@ class DeviceRepository {
    * Release a device from a tenant
    */
   async releaseDevice(deviceId: string): Promise<Device> {
+    // First try using Sequelize Model method
+    try {
+      // Find the device
+      const device = await Device.findByPk(deviceId);
+      
+      if (!device) {
+        throw new Error(`Device with ID ${deviceId} not found`);
+      }
+      
+      // Update the device - explicitly set fields to undefined as TypeScript requires
+      device.tenantId = undefined;
+      device.claimedById = undefined;
+      device.claimedAt = undefined;
+      device.displayName = undefined;
+      device.campaignId = undefined; // Also clear any campaign assignment
+      
+      await device.save();
+      
+      // Verify fields are actually undefined or null in database
+      await device.reload();
+      if (device.tenantId !== undefined || device.claimedById !== undefined) {
+        // If fields not properly cleared, use the direct update approach
+        console.log(`[RELEASE DEVICE] Normal release didn't update fields correctly, forcing update for device ${deviceId}`);
+        await this.forceReleaseDevice(deviceId);
+      }
+      
+      // Return the updated device
+      return await this.getDeviceById(deviceId);
+    } catch (error) {
+      console.error(`[RELEASE DEVICE] Error in standard release method:`, error);
+      
+      // If the standard release fails, try the force method
+      const success = await this.forceReleaseDevice(deviceId);
+      if (!success) {
+        throw new Error(`Failed to release device ${deviceId}`);
+      }
+      
+      // Return the updated device
+      return await this.getDeviceById(deviceId);
+    }
+  }
+  
+  /**
+   * Force release a device - uses direct SQL update as fallback
+   */
+  async forceReleaseDevice(deviceId: string): Promise<boolean> {
+    // Use direct SQL update via Sequelize to ensure the update goes through
+    const updateResult = await Device.update(
+      {
+        // In raw SQL these will be NULL but TypeScript needs undefined for the types
+        tenantId: undefined,
+        claimedById: undefined,
+        claimedAt: undefined,
+        displayName: undefined,
+        campaignId: undefined
+      },
+      {
+        where: {
+          id: deviceId
+        },
+        // Force the update even if validation fails
+        hooks: false
+      }
+    );
+    
+    // Return success based on number of rows affected
+    return updateResult[0] > 0;
+  }
+  
+  /**
+   * Assign a campaign to a device
+   */
+  async assignCampaign(deviceId: string, campaignId: string | null): Promise<Device> {
     // Find the device
     const device = await Device.findByPk(deviceId);
     
@@ -221,17 +326,13 @@ class DeviceRepository {
     }
     
     // Update the device
-    device.tenantId = undefined;
-    device.claimedById = undefined;
-    device.claimedAt = undefined;
-    device.displayName = undefined;
-    
+    device.campaignId = campaignId || undefined;
     await device.save();
     
     // Return the updated device
     return await this.getDeviceById(deviceId);
   }
-  
+
   /**
    * Save a device (generic method for all device updates)
    */

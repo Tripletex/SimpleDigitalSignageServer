@@ -12,6 +12,7 @@ export interface DeviceData {
     claimedBy?: string; // ID of the user who claimed the device
     claimedAt?: Date; // When the device was claimed
     displayName?: string; // Custom name given to the device by the tenant
+    campaignId?: string; // ID of the campaign (playlist group) assigned to this device
 }
 
 export interface DeviceRegistration {
@@ -38,6 +39,18 @@ export interface DeviceClaimRequest {
 }
 
 export interface DeviceClaimResponse {
+    success: boolean;
+    message: string;
+    device?: DeviceData;
+}
+
+// Device campaign assignment request and response
+export interface DeviceCampaignAssignmentRequest {
+    deviceId: string;
+    campaignId: string | null; // null to remove assignment
+}
+
+export interface DeviceCampaignAssignmentResponse {
     success: boolean;
     message: string;
     device?: DeviceData;

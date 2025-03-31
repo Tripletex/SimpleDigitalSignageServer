@@ -9,6 +9,7 @@ import Organizations from './pages/Organizations';
 import Profile from './pages/Profile';
 import Playlists from './pages/Playlists';
 import Campaigns from './pages/Campaigns';
+import Settings from './pages/Settings';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -149,6 +150,20 @@ function App() {
           element={
             isAuthenticated ? (
               <Campaigns 
+                user={user} 
+                setIsAuthenticated={setIsAuthenticated} 
+                setUser={setUser} 
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            isAuthenticated ? (
+              <Settings 
                 user={user} 
                 setIsAuthenticated={setIsAuthenticated} 
                 setUser={setUser} 

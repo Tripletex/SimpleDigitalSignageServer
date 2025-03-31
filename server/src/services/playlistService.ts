@@ -18,13 +18,35 @@ class PlaylistService {
 
     // Map items if they exist
     if (playlist.items && playlist.items.length > 0) {
-      mappedPlaylist.items = playlist.items.map(item => ({
-        id: item.id,
-        type: item.type,
-        url: item.url as any, // Type cast needed due to JSONB storage
-        duration: item.duration,
-        position: item.position
-      })).sort((a, b) => (a.position || 0) - (b.position || 0));
+      mappedPlaylist.items = playlist.items.map(item => {
+        // Create base mapped item
+        const mappedItem: PlaylistItemData = {
+          id: item.id,
+          type: item.type,
+          duration: item.duration,
+          position: item.position
+        };
+        
+        // Handle URL according to item type
+        if (item.type === 'URL' || item.type === 'IMAGE' || item.type === 'YOUTUBE') {
+          // Safely extract URL from JSONB storage
+          if (item.url && typeof item.url === 'object') {
+            try {
+              // Handle both string and object formats for backwards compatibility
+              const urlObj = item.url as any;
+              if (urlObj.location && typeof urlObj.location === 'string') {
+                mappedItem.url = { location: urlObj.location };
+              } else {
+                console.warn(`Invalid URL structure for item ${item.id}, type ${item.type}`);
+              }
+            } catch (err) {
+              console.error(`Error parsing URL for item ${item.id}:`, err);
+            }
+          }
+        }
+        
+        return mappedItem;
+      }).sort((a, b) => (a.position || 0) - (b.position || 0));
     } else {
       mappedPlaylist.items = [];
     }
