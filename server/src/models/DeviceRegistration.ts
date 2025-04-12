@@ -32,6 +32,12 @@ export class DeviceRegistration extends Model {
   hardwareId?: string;
 
   @Column({
+    type: DataType.TEXT,
+    allowNull: false
+  })
+  publicKey!: string;
+
+  @Column({
     type: DataType.DATE,
     allowNull: false,
     defaultValue: DataType.NOW

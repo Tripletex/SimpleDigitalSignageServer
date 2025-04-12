@@ -35,17 +35,33 @@ class DeviceController {
     public pingDevice = handleErrors(async (req: Request, res: Response): Promise<void> => {
         const deviceData = await validateAndConvert<DeviceData>(req, deviceDataSchema);
         
-        // Verify the device ID exists and is active
-        const isValidDevice = await deviceRegistrationService.isValidDeviceId(deviceData.id);
+        // First, verify the device ID exists and is active
+        const deviceRegistration = await deviceRegistrationService.getDeviceById(deviceData.id);
         
-        if (!isValidDevice) {
+        if (!deviceRegistration || deviceRegistration.active !== true) {
             res.status(401).json({ 
                 message: 'Invalid or inactive device ID. Please register the device first.' 
             });
             return;
         }
         
-        // The updateLastSeen service method now handles checking if the device is claimed
+        // Import device auth utility for signature verification
+        const { verifyDeviceSignature } = await import('../utils/deviceAuth');
+        
+        // Verify the signature using the device's public key
+        const isSignatureValid = verifyDeviceSignature(
+            deviceData, 
+            deviceRegistration.publicKey
+        );
+        
+        if (!isSignatureValid) {
+            res.status(401).json({ 
+                message: 'Invalid device signature. Authentication failed.' 
+            });
+            return;
+        }
+        
+        // Signature verified, update last seen status
         const result = await deviceService.updateLastSeen(deviceData);
         res.status(200).json(result);
     });

@@ -22,6 +22,12 @@ if ! command -v jq &> /dev/null; then
     exit 1
 fi
 
+# Check if openssl is available
+if ! command -v openssl &> /dev/null; then
+    echo -e "${RED}OpenSSL is required but not installed. Please install OpenSSL.${NC}"
+    exit 1
+fi
+
 # Parse command line arguments
 DEVICE_COUNT=$DEFAULT_DEVICE_COUNT
 if [ $# -ge 1 ]; then
@@ -64,12 +70,18 @@ declare -a DEVICE_NAMES
 declare -a DEVICE_UUIDS
 declare -a DEVICE_MACS
 declare -a DEVICE_IPS
+declare -a DEVICE_PRIVATE_KEYS
+declare -a DEVICE_PUBLIC_KEYS
 
-echo -e "${BLUE}Starting multi-device simulation...${NC}"
+echo -e "${BLUE}Starting multi-device simulation with passkey authentication...${NC}"
 echo -e "${BLUE}Number of devices: ${GREEN}$DEVICE_COUNT${NC}"
 
-# Step 1: Register devices
-echo -e "\n${YELLOW}Step 1: Registering devices...${NC}"
+# Create a directory to store keys
+KEYS_DIR="device_keys"
+mkdir -p "$KEYS_DIR"
+
+# Step 1: Generate key pairs and register devices
+echo -e "\n${YELLOW}Step 1: Generating key pairs and registering devices...${NC}"
 
 for i in $(seq 1 $DEVICE_COUNT); do
     # Generate device info
@@ -77,14 +89,31 @@ for i in $(seq 1 $DEVICE_COUNT); do
     MAC_ADDRESS=$(generate_mac)
     IP_ADDRESS="$IP_PREFIX.$((100 + i))"
     
-    echo -e "\n${BLUE}Registering device $i: ${GREEN}$DEVICE_NAME${NC}"
+    echo -e "\n${BLUE}Device $i: ${GREEN}$DEVICE_NAME${NC}"
+    echo -e "${BLUE}Generating RSA key pair...${NC}"
+    
+    # Generate private key
+    PRIVATE_KEY_FILE="$KEYS_DIR/device_${i}_private_key.pem"
+    PUBLIC_KEY_FILE="$KEYS_DIR/device_${i}_public_key.pem"
+    
+    openssl genrsa -out "$PRIVATE_KEY_FILE" 2048 > /dev/null 2>&1
+    openssl rsa -in "$PRIVATE_KEY_FILE" -pubout -out "$PUBLIC_KEY_FILE" > /dev/null 2>&1
+    
+    # Convert keys to base64
+    PRIVATE_KEY_BASE64=$(cat "$PRIVATE_KEY_FILE" | base64 | tr -d '\n')
+    PUBLIC_KEY_BASE64=$(cat "$PUBLIC_KEY_FILE" | base64 | tr -d '\n')
+    
+    echo -e "${GREEN}Key pair generated${NC}"
     
     # Register the device
+    echo -e "${BLUE}Registering device with server...${NC}"
+    
     REGISTER_RESPONSE=$(curl -s -X POST "$SERVER_URL$REGISTER_ENDPOINT" \
       -H "Content-Type: application/json" \
       -d "{
         \"deviceType\": \"test-device\",
-        \"hardwareId\": \"$MAC_ADDRESS\"
+        \"hardwareId\": \"$MAC_ADDRESS\",
+        \"publicKey\": \"$PUBLIC_KEY_BASE64\"
       }")
     
     # Extract UUID
@@ -104,6 +133,8 @@ for i in $(seq 1 $DEVICE_COUNT); do
     DEVICE_UUIDS[$i]=$DEVICE_UUID
     DEVICE_MACS[$i]=$MAC_ADDRESS
     DEVICE_IPS[$i]=$IP_ADDRESS
+    DEVICE_PRIVATE_KEYS[$i]=$PRIVATE_KEY_FILE
+    DEVICE_PUBLIC_KEYS[$i]=$PUBLIC_KEY_FILE
 done
 
 # Display all device UUIDs for claiming
@@ -121,6 +152,72 @@ for i in $(seq 1 $DEVICE_COUNT); do
 done
 echo -e "${YELLOW}===================================================${NC}"
 echo -e "${BLUE}UUIDs saved to ${GREEN}$UUIDS_FILE${NC}\n"
+
+# Function to sign device data with private key
+sign_device_data() {
+    local device_id="$1"
+    local device_name="$2"
+    local ip_address="$3"
+    local private_key_file="$4"
+    local timestamp=$(date +%s000)  # Current time in milliseconds
+    
+    # Create the data to sign (without signature)
+    local data_to_sign=$(cat <<EOF
+{
+  "id": "$device_id",
+  "name": "$device_name",
+  "networks": [
+    {
+      "name": "eth0",
+      "ipAddress": ["$ip_address"]
+    },
+    {
+      "name": "wlan0",
+      "ipAddress": ["10.0.0.$((RANDOM % 255 + 1))"]
+    }
+  ],
+  "timestamp": $timestamp
+}
+EOF
+)
+    
+    # Create a temporary file with the data
+    local temp_file="temp_data_$device_id.json"
+    echo "$data_to_sign" > "$temp_file"
+    
+    # Sign the data using the private key
+    local sig_file="signature_$device_id.bin"
+    openssl dgst -sha256 -sign "$private_key_file" -out "$sig_file" "$temp_file"
+    
+    # Convert signature to base64
+    local signature=$(base64 < "$sig_file" | tr -d '\n')
+    
+    # Add signature to the data
+    local signed_data=$(cat <<EOF
+{
+  "id": "$device_id",
+  "name": "$device_name",
+  "networks": [
+    {
+      "name": "eth0",
+      "ipAddress": ["$ip_address"]
+    },
+    {
+      "name": "wlan0",
+      "ipAddress": ["10.0.0.$((RANDOM % 255 + 1))"]
+    }
+  ],
+  "timestamp": $timestamp,
+  "signature": "$signature"
+}
+EOF
+)
+    
+    # Clean up temporary files
+    rm -f "$temp_file" "$sig_file"
+    
+    echo "$signed_data"
+}
 
 # Step 2: Start pinging with all devices
 echo -e "\n${YELLOW}Step 2: Starting periodic ping for all devices (every $PING_INTERVAL seconds)...${NC}"
@@ -142,26 +239,13 @@ while true; do
     for i in $(seq 1 $DEVICE_COUNT); do
         echo -e "${BLUE}Pinging with device $i: ${GREEN}${DEVICE_NAMES[$i]}${NC}"
         
-        # Generate random WiFi IP for variety
-        WIFI_IP="10.0.0.$((RANDOM % 255 + 1))"
+        # Generate signed device data
+        SIGNED_DATA=$(sign_device_data "${DEVICE_UUIDS[$i]}" "${DEVICE_NAMES[$i]}" "${DEVICE_IPS[$i]}" "${DEVICE_PRIVATE_KEYS[$i]}")
         
-        # Send the ping with device data
+        # Send the ping with signed device data
         PING_RESPONSE=$(curl -s -X POST "$SERVER_URL$PING_ENDPOINT" \
           -H "Content-Type: application/json" \
-          -d "{
-            \"id\": \"${DEVICE_UUIDS[$i]}\",
-            \"name\": \"${DEVICE_NAMES[$i]}\",
-            \"networks\": [
-              {
-                \"name\": \"eth0\",
-                \"ipAddress\": [\"${DEVICE_IPS[$i]}\"]
-              },
-              {
-                \"name\": \"wlan0\",
-                \"ipAddress\": [\"$WIFI_IP\"]
-              }
-            ]
-          }")
+          -d "$SIGNED_DATA")
         
         # Check if ping was successful
         if echo "$PING_RESPONSE" | jq -e '.message' &>/dev/null; then

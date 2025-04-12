@@ -8,6 +8,8 @@ export interface DeviceData {
     id: string;
     name: string;
     networks: Network[];
+    signature?: string; // Base64-encoded signature of the device data using the private key
+    timestamp?: number; // Timestamp when the data was signed (in milliseconds since epoch)
     tenantId?: string; // ID of the tenant that claimed this device
     claimedBy?: string; // ID of the user who claimed the device
     claimedAt?: Date; // When the device was claimed
@@ -22,9 +24,10 @@ export interface DeviceRegistration {
 }
 
 export interface DeviceRegistrationRequest {
-    // Minimal information provided by device during registration
+    // Information provided by device during registration
     deviceType?: string;
     hardwareId?: string; // Optional hardware identifier (MAC address, serial number, etc.)
+    publicKey: string; // Base64-encoded public key for device authentication
 }
 
 export interface DeviceRegistrationResponse {

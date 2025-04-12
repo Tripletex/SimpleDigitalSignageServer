@@ -3,8 +3,9 @@ import Joi from 'joi';
 
 export const deviceRegistrationRequestSchema = Joi.object({
     deviceType: Joi.string().optional(),
-    hardwareId: Joi.string().optional()
-}).min(0); // Allow empty object for minimal registration
+    hardwareId: Joi.string().optional(),
+    publicKey: Joi.string().required().min(16).max(10000) // Require public key in base64 format
+})
 
 export const deviceClaimSchema = Joi.object({
     deviceId: Joi.string().required(),

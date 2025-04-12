@@ -7,7 +7,7 @@ class DeviceRegistrationRepository {
    * Register a new device
    */
   async registerDevice(
-    request: { deviceType?: string; hardwareId?: string; }
+    request: { deviceType?: string; hardwareId?: string; publicKey: string; }
   ): Promise<{ id: string; registrationTime: Date }> {
     // Generate a unique ID for the device
     const deviceId = generateUUID();
@@ -18,12 +18,13 @@ class DeviceRegistrationRepository {
       name: `Device-${deviceId.substr(0, 8)}`
     });
     
-    // Create device registration
+    // Create device registration with public key
     const registration = await DeviceRegistration.create({
       id: generateUUID(),
       deviceId: deviceId,
       deviceType: request.deviceType,
       hardwareId: request.hardwareId,
+      publicKey: request.publicKey,
       registrationTime: new Date(),
       lastSeen: new Date()
     });

@@ -9,28 +9,53 @@ PING_ENDPOINT="/api/device/ping"
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Generate a random device name
 DEVICE_NAME="test-device-$(date +%s)"
 
-echo -e "${BLUE}Starting device simulation script...${NC}"
+echo -e "${BLUE}Starting device simulation script with passkey authentication...${NC}"
 echo -e "${BLUE}Device name: ${GREEN}$DEVICE_NAME${NC}"
 
-# Step 1: Register a new device
-echo -e "\n${YELLOW}Step 1: Registering device...${NC}"
+# Check if openssl is available
+if ! command -v openssl &> /dev/null; then
+    echo -e "${RED}OpenSSL is required but not installed. Please install OpenSSL.${NC}"
+    exit 1
+fi
+
+# Step 1: Generate RSA key pair for the device
+echo -e "\n${YELLOW}Step 1: Generating RSA key pair for the device...${NC}"
+
+# Generate private key
+openssl genrsa -out device_private_key.pem 2048 > /dev/null 2>&1
+
+# Generate public key
+openssl rsa -in device_private_key.pem -pubout -out device_public_key.pem > /dev/null 2>&1
+
+# Convert keys to base64 for easier transmission
+PRIVATE_KEY_BASE64=$(cat device_private_key.pem | base64 | tr -d '\n')
+PUBLIC_KEY_BASE64=$(cat device_public_key.pem | base64 | tr -d '\n')
+
+echo -e "${GREEN}Key pair generated successfully${NC}"
+echo -e "${BLUE}Private key saved to ${GREEN}device_private_key.pem${NC}"
+echo -e "${BLUE}Public key saved to ${GREEN}device_public_key.pem${NC}"
+
+# Step 2: Register the device with the server
+echo -e "\n${YELLOW}Step 2: Registering device with public key...${NC}"
 
 REGISTER_RESPONSE=$(curl -s -X POST "$SERVER_URL$REGISTER_ENDPOINT" \
   -H "Content-Type: application/json" \
   -d "{
     \"deviceType\": \"test-device\",
-    \"hardwareId\": \"$(uuidgen)\"
+    \"hardwareId\": \"$(uuidgen)\",
+    \"publicKey\": \"$PUBLIC_KEY_BASE64\"
   }")
 
 echo "Registration response:"
 echo "$REGISTER_RESPONSE" | jq '.' 2>/dev/null || echo "$REGISTER_RESPONSE"
 
-# Step 2: Extract UUID from the response
+# Step 3: Extract UUID from the response
 DEVICE_UUID=$(echo "$REGISTER_RESPONSE" | grep -o '"id":"[^"]*' | sed 's/"id":"//')
 
 if [ -z "$DEVICE_UUID" ]; then
@@ -80,8 +105,70 @@ get_ip_address() {
 
 IP_ADDRESS=$(get_ip_address)
 
-# Step 3: Ping the server every 5 seconds
-echo -e "\n${YELLOW}Step 3: Starting periodic ping (every 5 seconds)...${NC}"
+# Function to sign device data with private key
+sign_device_data() {
+    local device_id="$1"
+    local device_name="$2"
+    local timestamp=$(date +%s000)  # Current time in milliseconds
+    
+    # Create the data to sign (without signature)
+    local data_to_sign=$(cat <<EOF
+{
+  "id": "$device_id",
+  "name": "$device_name",
+  "networks": [
+    {
+      "name": "eth0",
+      "ipAddress": ["$IP_ADDRESS"]
+    },
+    {
+      "name": "wlan0",
+      "ipAddress": ["10.0.0.$((RANDOM % 255 + 1))"]
+    }
+  ],
+  "timestamp": $timestamp
+}
+EOF
+)
+    
+    # Create a temporary file with the data
+    echo "$data_to_sign" > temp_data.json
+    
+    # Sign the data using the private key
+    openssl dgst -sha256 -sign device_private_key.pem -out signature.bin temp_data.json
+    
+    # Convert signature to base64
+    local signature=$(base64 < signature.bin | tr -d '\n')
+    
+    # Add signature to the data
+    local signed_data=$(cat <<EOF
+{
+  "id": "$device_id",
+  "name": "$device_name",
+  "networks": [
+    {
+      "name": "eth0",
+      "ipAddress": ["$IP_ADDRESS"]
+    },
+    {
+      "name": "wlan0",
+      "ipAddress": ["10.0.0.$((RANDOM % 255 + 1))"]
+    }
+  ],
+  "timestamp": $timestamp,
+  "signature": "$signature"
+}
+EOF
+)
+    
+    # Clean up temporary files
+    rm -f temp_data.json signature.bin
+    
+    echo "$signed_data"
+}
+
+# Step 4: Ping the server every 5 seconds with signed data
+echo -e "\n${YELLOW}Step 4: Starting periodic ping with signed data (every 5 seconds)...${NC}"
 echo -e "Press Ctrl+C to stop\n"
 
 PING_COUNT=0
@@ -97,23 +184,13 @@ while true; do
     
     echo -e "${BLUE}[$TIMESTAMP] Ping #$PING_COUNT${NC}"
     
-    # Send the ping with device data
+    # Generate signed device data
+    SIGNED_DATA=$(sign_device_data "$DEVICE_UUID" "$DEVICE_NAME")
+    
+    # Send the ping with signed device data
     PING_RESPONSE=$(curl -s -X POST "$SERVER_URL$PING_ENDPOINT" \
       -H "Content-Type: application/json" \
-      -d "{
-        \"id\": \"$DEVICE_UUID\",
-        \"name\": \"$DEVICE_NAME\",
-        \"networks\": [
-          {
-            \"name\": \"eth0\",
-            \"ipAddress\": [\"$IP_ADDRESS\"]
-          },
-          {
-            \"name\": \"wlan0\",
-            \"ipAddress\": [\"10.0.0.$(( RANDOM % 255 + 1 ))\"]
-          }
-        ]
-      }")
+      -d "$SIGNED_DATA")
     
     echo "Ping response:"
     echo "$PING_RESPONSE" | jq '.' 2>/dev/null || echo "$PING_RESPONSE"
