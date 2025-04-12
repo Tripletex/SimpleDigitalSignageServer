@@ -58,3 +58,32 @@ export interface DeviceCampaignAssignmentResponse {
     message: string;
     device?: DeviceData;
 }
+
+// New interfaces for device authentication
+
+// Request to start authentication (device provides ID)
+export interface DeviceAuthenticationRequest {
+    deviceId: string;
+}
+
+// Response with challenge token to sign
+export interface DeviceAuthenticationChallenge {
+    challenge: string; // Random challenge string that device must sign
+    deviceId: string;
+    expires: number; // Timestamp when challenge expires (in milliseconds)
+}
+
+// Request to complete authentication (device signs challenge)
+export interface DeviceAuthenticationVerification {
+    deviceId: string;
+    challenge: string; // Original challenge string
+    signature: string; // Signature of the challenge using the device's private key
+}
+
+// Successful authentication response
+export interface DeviceAuthenticationResponse {
+    success: boolean;
+    message: string;
+    token?: string; // JWT token for future authenticated requests
+    expires?: number; // Timestamp when token expires (in milliseconds)
+}

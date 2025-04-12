@@ -1,6 +1,7 @@
 // routes/deviceRoutes.ts
 import express, {Router} from 'express';
 import deviceController from '../controllers/deviceController';
+import { requireDeviceAuth } from '../middleware/deviceAuthMiddleware';
 
 class DeviceRoutes {
   private router = express.Router();
@@ -12,13 +13,13 @@ class DeviceRoutes {
     // Device registration endpoint
     this.router.post('/register', deviceController.registerDevice);
     
-    // Device ping endpoint
+    // Device ping endpoint - now requires signature validation but not JWT
     this.router.post('/ping', deviceController.pingDevice);
     
-    // Protected endpoints (require auth)
+    // Protected endpoints (require user auth)
     // -----------------------
     
-    // Get active ping data
+    // Get active ping data - requires user auth or device auth
     this.router.get('/list', deviceController.getAllDevices);
     
     // Get all registered devices (with or without ping data)
@@ -42,6 +43,12 @@ class DeviceRoutes {
     // Get a specific device by ID
     // IMPORTANT: This must be after the other routes to avoid conflicts
     this.router.get('/:id', deviceController.getDeviceById);
+    
+    // Device JWT auth-protected endpoints
+    // -----------------------
+    
+    // Add any device-specific endpoints that require JWT auth here
+    // Example: this.router.get('/secure-data', requireDeviceAuth, deviceController.getSecureData);
   }
 
   public getRouter():Router {

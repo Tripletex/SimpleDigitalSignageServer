@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 
 // Routes
 import deviceRoutes from './routes/deviceRoutes';
+import deviceAuthRoutes from './routes/deviceAuthRoutes';
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 import setupRoutes from './routes/setupRoutes';
@@ -62,6 +63,9 @@ app.use('/api/device', excludeRoutes([
   '/ping',
   '/register'
 ]), deviceRoutes);
+
+// - Device authentication routes (no auth required)
+app.use('/api/device/auth', deviceAuthRoutes);
 
 // - Auth routes
 app.use('/api/auth', authRoutes);
