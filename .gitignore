@@ -7,3 +7,4 @@ node_modules/
 
 # ide directory
 .idea
+server/scripts/device-uuid.txt

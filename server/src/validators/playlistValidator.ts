@@ -34,6 +34,9 @@ export const playlistSchema = Joi.object({
   id: Joi.string().uuid().optional(),
   name: Joi.string().min(1).max(100).required(),
   description: Joi.string().max(500).allow('', null).optional(),
+  tenantId: Joi.string().uuid().optional(),
+  createdAt: Joi.date().optional(),
+  updatedAt: Joi.date().optional(),
   items: Joi.array().items(playlistItemSchema).optional()
 });
 
