@@ -5,7 +5,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build and Run Commands
 - Server: `npm start` (dev mode), `npm run build` (compile TS)
 - Client: `npm start` (dev server), `npm run build` (production)
-- Database: `npm run db:create`, `npm run db:migrate`, `npm run db:seed`, `npm run db:reset`
+- Database: 
+  - Create/Drop: `npm run db:create`, `npm run db:drop`, `npm run db:reset`
+  - Migrations: `npm run db:migrate`, `npm run db:migrate:down`, `npm run db:migrate:create name-of-migration`
+  - Legacy: `npm run db:migrate:sequelize` (old Sequelize-based migration)
+  - Seed data: `npm run db:seed`
+
+## Database Migrations
+- Project uses node-pg-migrate for explicit, versioned migrations
+- Migration files are in server/migrations directory
+- Each migration includes up (apply) and down (revert) functions
+- Migrations run automatically during server startup
+- See server/MIGRATIONS.md for complete documentation
 
 ## Code Style Guidelines
 - **Formatting**: 2-space indentation, single quotes, semicolons, trailing commas

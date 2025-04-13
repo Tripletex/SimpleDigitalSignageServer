@@ -177,8 +177,18 @@ async function initializeDatabase() {
       throw new Error('Failed to connect to the database');
     }
     
-    // Sync models with database
-    await sequelize.sync({ alter: true });
+    // Check and run migrations if needed
+    try {
+      const { runMigrationsIfNeeded } = await import('./config/checkMigrations');
+      await runMigrationsIfNeeded();
+    } catch (error) {
+      console.error('Error running migrations:', error);
+      // Continue with startup using Sequelize sync as fallback
+    }
+    
+    // Initialize the models without altering the database structure
+    // Tables are now managed by migrations
+    await sequelize.sync({ alter: false });
     console.log('Database initialization completed');
     
     // Check if users exist but don't create any automatically

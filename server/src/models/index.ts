@@ -13,6 +13,7 @@ import { Playlist } from './Playlist';
 import { PlaylistItem } from './PlaylistItem';
 import { PlaylistGroup } from './PlaylistGroup';
 import { PlaylistSchedule } from './PlaylistSchedule';
+import { PgMigration } from './PgMigration';
 import { Sequelize } from 'sequelize-typescript';
 
 // Export all models for direct import
@@ -30,7 +31,8 @@ export {
   Playlist,
   PlaylistItem,
   PlaylistGroup,
-  PlaylistSchedule
+  PlaylistSchedule,
+  PgMigration
 };
 
 // Array of models in order of dependency (important for initialization)
@@ -48,7 +50,8 @@ const modelArray = [
   Playlist,
   PlaylistItem,
   PlaylistGroup,
-  PlaylistSchedule
+  PlaylistSchedule,
+  PgMigration
 ];
 
 // Define function to initialize models with a Sequelize instance
