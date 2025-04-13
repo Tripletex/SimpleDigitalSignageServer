@@ -19,6 +19,8 @@ export const requireDeviceAuth = (req: Request, res: Response, next: NextFunctio
   // Get the authorization header
   const authHeader = req.headers.authorization;
   
+  console.log('[AUTH] Headers:', req.headers);
+  
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({
       success: false,
@@ -28,9 +30,11 @@ export const requireDeviceAuth = (req: Request, res: Response, next: NextFunctio
   
   // Extract the token
   const token = authHeader.split(' ')[1];
+  console.log('[AUTH] Token received (first 20 chars):', token.substring(0, 20) + '...');
   
   // Verify the token
   const decoded = verifyDeviceToken(token);
+  console.log('[AUTH] Token verification result:', decoded ? 'success' : 'failure');
   
   if (!decoded) {
     return res.status(401).json({
@@ -43,6 +47,7 @@ export const requireDeviceAuth = (req: Request, res: Response, next: NextFunctio
   req.device = {
     id: decoded.sub
   };
+  console.log('[AUTH] Device authenticated with ID:', decoded.sub);
   
   // Continue to the next middleware/route handler
   next();

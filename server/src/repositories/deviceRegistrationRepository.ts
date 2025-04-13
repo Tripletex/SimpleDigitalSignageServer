@@ -9,30 +9,43 @@ class DeviceRegistrationRepository {
   async registerDevice(
     request: { deviceType?: string; hardwareId?: string; publicKey: string; }
   ): Promise<{ id: string; registrationTime: Date }> {
-    // Generate a unique ID for the device
-    const deviceId = generateUUID();
+    console.log('[REGISTER] Starting device registration with public key length:', request.publicKey.length);
     
-    // Create the device
-    const device = await Device.create({
-      id: deviceId,
-      name: `Device-${deviceId.substr(0, 8)}`
-    });
-    
-    // Create device registration with public key
-    const registration = await DeviceRegistration.create({
-      id: generateUUID(),
-      deviceId: deviceId,
-      deviceType: request.deviceType,
-      hardwareId: request.hardwareId,
-      publicKey: request.publicKey,
-      registrationTime: new Date(),
-      lastSeen: new Date()
-    });
-    
-    return {
-      id: deviceId,
-      registrationTime: registration.registrationTime
-    };
+    try {
+      // Generate a unique ID for the device
+      const deviceId = generateUUID();
+      console.log('[REGISTER] Generated deviceId:', deviceId);
+      
+      // Create the device
+      const device = await Device.create({
+        id: deviceId,
+        name: `Device-${deviceId.substr(0, 8)}`
+      });
+      console.log('[REGISTER] Created device record:', device.id);
+      
+      // Create device registration with public key
+      const registration = await DeviceRegistration.create({
+        id: generateUUID(),
+        deviceId: deviceId,
+        deviceType: request.deviceType,
+        hardwareId: request.hardwareId,
+        publicKey: request.publicKey,
+        registrationTime: new Date(),
+        lastSeen: new Date()
+      });
+      console.log('[REGISTER] Created registration record:', registration.id);
+      
+      const result = {
+        id: deviceId,
+        registrationTime: registration.registrationTime
+      };
+      
+      console.log('[REGISTER] Returning result:', result);
+      return result;
+    } catch (error) {
+      console.error('[REGISTER] Error during device registration:', error);
+      throw error;
+    }
   }
   
   /**

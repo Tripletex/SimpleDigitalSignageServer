@@ -8,6 +8,7 @@ import { PendingInvitation } from './PendingInvitation';
 import { Device } from './Device';
 import { DeviceNetwork } from './DeviceNetwork';
 import { DeviceRegistration } from './DeviceRegistration';
+import { DeviceAuthChallenge } from './DeviceAuthChallenge';
 import { Playlist } from './Playlist';
 import { PlaylistItem } from './PlaylistItem';
 import { PlaylistGroup } from './PlaylistGroup';
@@ -25,6 +26,7 @@ export {
   Device,
   DeviceNetwork,
   DeviceRegistration,
+  DeviceAuthChallenge,
   Playlist,
   PlaylistItem,
   PlaylistGroup,
@@ -42,6 +44,7 @@ const modelArray = [
   Device,
   DeviceNetwork, 
   DeviceRegistration,
+  DeviceAuthChallenge,
   Playlist,
   PlaylistItem,
   PlaylistGroup,

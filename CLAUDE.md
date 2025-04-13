@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Documentation**: JSDoc comments for functions and complex logic
 
 ## Security Requirements
-- All user input must be validated and sanitized
+- All user input must be validated and sanitized both on the client side and server side
 - Follow secure authentication practices with WebAuthn
 - Implement proper authorization checks for API endpoints
 - Never log sensitive information (credentials, tokens, PII)

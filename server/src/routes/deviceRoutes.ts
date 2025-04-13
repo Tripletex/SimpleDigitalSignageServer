@@ -13,8 +13,11 @@ class DeviceRoutes {
     // Device registration endpoint
     this.router.post('/register', deviceController.registerDevice);
     
-    // Device ping endpoint - now requires signature validation but not JWT
-    this.router.post('/ping', deviceController.pingDevice);
+    // Device ping endpoint - secured with JWT authentication
+    this.router.post('/ping', requireDeviceAuth, deviceController.pingDevice);
+    
+    // Protected endpoints (requiring JWT auth can be added later)
+    // -----------------------
     
     // Protected endpoints (require user auth)
     // -----------------------
@@ -43,12 +46,6 @@ class DeviceRoutes {
     // Get a specific device by ID
     // IMPORTANT: This must be after the other routes to avoid conflicts
     this.router.get('/:id', deviceController.getDeviceById);
-    
-    // Device JWT auth-protected endpoints
-    // -----------------------
-    
-    // Add any device-specific endpoints that require JWT auth here
-    // Example: this.router.get('/secure-data', requireDeviceAuth, deviceController.getSecureData);
   }
 
   public getRouter():Router {

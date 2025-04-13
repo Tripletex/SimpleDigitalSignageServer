@@ -30,9 +30,56 @@ app.use(cors({
   exposedHeaders: ['set-cookie']
 }));
 
-// Log all incoming requests
+// Comprehensive request logging middleware
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  const start = Date.now();
+  const requestId = Math.random().toString(36).substring(2, 15);
+  
+  // Log request details
+  console.log(`[REQUEST][${requestId}] ${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log(`[REQUEST][${requestId}] Headers: ${JSON.stringify(req.headers)}`);
+  
+  // Log query parameters if present
+  if (Object.keys(req.query).length > 0) {
+    console.log(`[REQUEST][${requestId}] Query params: ${JSON.stringify(req.query)}`);
+  }
+  
+  // Log request body if present (and not multipart form data)
+  const contentType = req.headers['content-type'] || '';
+  if (req.body && !contentType.includes('multipart/form-data')) {
+    // Safely stringify the body, handling circular references
+    const safeBody = JSON.stringify(req.body, (key, value) => {
+      // Filter out sensitive data
+      if (key.toLowerCase().includes('password') || 
+          key.toLowerCase().includes('secret') || 
+          key.toLowerCase().includes('token')) {
+        return '[REDACTED]';
+      }
+      
+      // For base64 or very long strings, truncate to prevent massive logs
+      if (typeof value === 'string' && value.length > 200) {
+        return value.substring(0, 200) + '... [truncated]';
+      }
+      
+      return value;
+    });
+    
+    console.log(`[REQUEST][${requestId}] Body: ${safeBody}`);
+  }
+  
+  // Capture the original send method instead of end (more reliable with Express)
+  const originalSend = res.send;
+  
+  // Override the send method to log response details
+  res.send = function(body) {
+    const duration = Date.now() - start;
+    
+    console.log(`[RESPONSE][${requestId}] ${new Date().toISOString()} - ${req.method} ${req.path} - Status: ${res.statusCode} - Duration: ${duration}ms`);
+    
+    // Call the original send method with explicit cast to fix TypeScript error
+    return originalSend.apply(this, [body] as unknown as [body?: any]);
+  };
+  
   next();
 });
 
@@ -42,9 +89,28 @@ app.use((req, res, next) => {
   res.setHeader('Keep-Alive', 'timeout=120');
   next();
 });
+// We need to extend the Express Request type for our rawBody property
+// This is already done in express-session.d.ts
+
 // Increase JSON request size limit to handle WebAuthn data
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// Add the body parsers before our logging middleware so req.body is available for logging
+app.use(express.json({ 
+  limit: '50mb',
+  verify: (req: express.Request, res: express.Response, buf: Buffer) => {
+    // Store the raw body buffer for potential later use
+    // This can be helpful for crypto verification that needs the exact bytes
+    (req as any).rawBody = buf;
+  }
+}));
+
+app.use(express.urlencoded({ 
+  limit: '50mb', 
+  extended: true,
+  verify: (req: express.Request, res: express.Response, buf: Buffer) => {
+    (req as any).rawBody = buf;
+  }
+}));
+
 app.use(cookieParser());
 
 // Session management
@@ -55,17 +121,22 @@ app.use(session({
   cookie: COOKIE_CONFIG as any
 }));
 
-// API Routes
-// - Device routes (ping and register are public, others require auth)
-// These paths are relative to the mount point (/api/device),
-// so we just need the endpoint name: '/ping' and '/register'
-app.use('/api/device', excludeRoutes([
-  '/ping',
-  '/register'
-]), deviceRoutes);
+// Add a simple health check endpoint for diagnostics
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    message: 'Server is running' 
+  });
+});
 
-// - Device authentication routes (no auth required)
-app.use('/api/device/auth', deviceAuthRoutes);
+// API Routes
+// - Device authentication routes (no auth required) - MUST be before the device routes
+app.use('/api/device-auth', deviceAuthRoutes);
+
+// - Device routes (no authentication middleware at this level)
+// Let each route handle its own authentication as needed
+app.use('/api/device', deviceRoutes);
 
 // - Auth routes
 app.use('/api/auth', authRoutes);

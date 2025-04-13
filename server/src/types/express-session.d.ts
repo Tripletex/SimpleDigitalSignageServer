@@ -23,5 +23,11 @@ declare module 'express' {
       email: string;
       role: string;
     };
+    // Add rawBody for crypto verification
+    rawBody?: Buffer;
+    // Add device property for device authentication
+    device?: {
+      id: string;
+    };
   }
 }

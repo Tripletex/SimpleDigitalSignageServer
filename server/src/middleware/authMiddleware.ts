@@ -62,22 +62,18 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
  */
 export const excludeRoutes = (paths: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    // Check if the path should be excluded
-    // The req.path doesn't include the mount path, so we need to check differently
-    const relativePaths = paths.map(p => {
-      // Extract the relative path (e.g. '/ping' from '/api/device/ping')
-      const parts = p.split('/');
-      return '/' + parts[parts.length - 1];
-    });
+    // Log the current path and exclusion list
+    console.log(`[AUTH] Current path: ${req.path}`);
+    console.log(`[AUTH] Excluded paths: ${JSON.stringify(paths)}`);
     
-    console.log(`Path check: ${req.path} against excluded paths:`, relativePaths);
-    
-    if (relativePaths.includes(req.path)) {
-      console.log(`Path ${req.path} is excluded from authentication`);
+    // Check if the current path is in the exclusion list
+    if (paths.includes(req.path)) {
+      console.log(`[AUTH] Path ${req.path} is excluded from authentication`);
       return next();
     }
     
     // Otherwise apply authentication
+    console.log(`[AUTH] Path ${req.path} requires authentication`);
     return isAuthenticated(req, res, next);
   };
 };

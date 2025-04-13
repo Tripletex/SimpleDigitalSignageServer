@@ -10,6 +10,7 @@ export const deviceDataSchema = Joi.object({
     id: Joi.string().guid({ version: 'uuidv4' }).required(),
     name: Joi.string().required(),
     networks: Joi.array().items(networkSchema).optional(),
-    signature: Joi.string().required(), // Require signature for authentication
-    timestamp: Joi.number().required(), // Require timestamp for preventing replay attacks
+    // The following fields are now optional since we're using JWT for authentication
+    signature: Joi.string().optional(),
+    timestamp: Joi.number().optional(),
 });

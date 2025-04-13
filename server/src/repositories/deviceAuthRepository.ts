@@ -2,7 +2,7 @@ import { DeviceAuthChallenge } from '../models/DeviceAuthChallenge';
 import { DeviceRegistration } from '../models/DeviceRegistration';
 import { Device } from '../models/Device';
 import { generateUUID } from '../utils/helpers';
-import crypto from 'crypto';
+import { generateChallenge } from '../utils/deviceAuth';
 
 class DeviceAuthRepository {
   /**
@@ -15,7 +15,7 @@ class DeviceAuthRepository {
     expires: Date;
   }> {
     // Generate a random challenge string
-    const challenge = crypto.randomBytes(32).toString('base64');
+    const challenge = generateChallenge();
     
     // Calculate expiration time
     const expires = new Date();

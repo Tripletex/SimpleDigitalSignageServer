@@ -4,6 +4,8 @@
 SERVER_URL="http://localhost:3000"  # Change this to your server URL
 REGISTER_ENDPOINT="/api/device/register"
 PING_ENDPOINT="/api/device/ping"
+AUTH_CHALLENGE_ENDPOINT="/api/device-auth/challenge"
+AUTH_VERIFY_ENDPOINT="/api/device-auth/verify"
 DEFAULT_DEVICE_COUNT=3
 PING_INTERVAL=5  # seconds
 
@@ -72,6 +74,7 @@ declare -a DEVICE_MACS
 declare -a DEVICE_IPS
 declare -a DEVICE_PRIVATE_KEYS
 declare -a DEVICE_PUBLIC_KEYS
+declare -a DEVICE_TOKENS
 
 echo -e "${BLUE}Starting multi-device simulation with passkey authentication...${NC}"
 echo -e "${BLUE}Number of devices: ${GREEN}$DEVICE_COUNT${NC}"
@@ -242,19 +245,81 @@ while true; do
         # Generate signed device data
         SIGNED_DATA=$(sign_device_data "${DEVICE_UUIDS[$i]}" "${DEVICE_NAMES[$i]}" "${DEVICE_IPS[$i]}" "${DEVICE_PRIVATE_KEYS[$i]}")
         
-        # Send the ping with signed device data
-        PING_RESPONSE=$(curl -s -X POST "$SERVER_URL$PING_ENDPOINT" \
-          -H "Content-Type: application/json" \
-          -d "$SIGNED_DATA")
+        # First, authenticate the device to get a JWT token
+    if [ -z "${DEVICE_TOKENS[$i]}" ] || [ $((PING_COUNT % 10)) -eq 0 ]; then
+        echo -e "${BLUE}Authenticating device $i...${NC}"
         
-        # Check if ping was successful
-        if echo "$PING_RESPONSE" | jq -e '.message' &>/dev/null; then
-            SUCCESS_MSG=$(echo "$PING_RESPONSE" | jq -r '.message')
-            echo -e "${GREEN}✓ $SUCCESS_MSG${NC}"
-        else
-            echo -e "${RED}✗ Ping failed. Response:${NC}"
-            echo "$PING_RESPONSE"
+        # Request a challenge
+        CHALLENGE_RESPONSE=$(curl -s -X POST "$SERVER_URL$AUTH_CHALLENGE_ENDPOINT" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"deviceId\": \"${DEVICE_UUIDS[$i]}\"
+          }")
+        
+        CHALLENGE=$(echo "$CHALLENGE_RESPONSE" | jq -r '.challenge' 2>/dev/null)
+        
+        if [ -z "$CHALLENGE" ] || [ "$CHALLENGE" == "null" ]; then
+            echo -e "${RED}Failed to get challenge for device $i${NC}"
+            continue
         fi
+        
+        # Sign the challenge
+        CHALLENGE_DATA="{\"deviceId\":\"${DEVICE_UUIDS[$i]}\",\"challenge\":\"$CHALLENGE\"}"
+        echo "$CHALLENGE_DATA" > "temp_challenge_$i.json"
+        openssl dgst -sha256 -sign "${DEVICE_PRIVATE_KEYS[$i]}" -out "temp_sig_$i.bin" "temp_challenge_$i.json"
+        SIG=$(base64 < "temp_sig_$i.bin" | tr -d '\n')
+        
+        # Verify the challenge to get a token
+        AUTH_RESPONSE=$(curl -s -X POST "$SERVER_URL$AUTH_VERIFY_ENDPOINT" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"deviceId\": \"${DEVICE_UUIDS[$i]}\",
+            \"challenge\": \"$CHALLENGE\",
+            \"signature\": \"$SIG\"
+          }")
+        
+        TOKEN=$(echo "$AUTH_RESPONSE" | jq -r '.token' 2>/dev/null)
+        
+        if [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ]; then
+            DEVICE_TOKENS[$i]=$TOKEN
+            echo -e "${GREEN}✓ Authentication successful${NC}"
+        else
+            echo -e "${RED}✗ Authentication failed:${NC}"
+            echo "$AUTH_RESPONSE"
+            continue
+        fi
+        
+        # Clean up temporary files
+        rm -f "temp_challenge_$i.json" "temp_sig_$i.bin"
+    fi
+    
+    # Send the ping with JWT authentication
+    PING_RESPONSE=$(curl -s -X POST "$SERVER_URL$PING_ENDPOINT" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer ${DEVICE_TOKENS[$i]}" \
+      -d "{
+        \"id\": \"${DEVICE_UUIDS[$i]}\",
+        \"name\": \"${DEVICE_NAMES[$i]}\",
+        \"networks\": [
+          {
+            \"name\": \"eth0\",
+            \"ipAddress\": [\"${DEVICE_IPS[$i]}\"]
+          },
+          {
+            \"name\": \"wlan0\",
+            \"ipAddress\": [\"10.0.0.$((RANDOM % 255 + 1))\"]
+          }
+        ]
+      }")
+    
+    # Check if ping was successful
+    if echo "$PING_RESPONSE" | jq -e '.message' &>/dev/null; then
+        SUCCESS_MSG=$(echo "$PING_RESPONSE" | jq -r '.message')
+        echo -e "${GREEN}✓ $SUCCESS_MSG${NC}"
+    else
+        echo -e "${RED}✗ Ping failed. Response:${NC}"
+        echo "$PING_RESPONSE"
+    fi
     done
     
     # Wait before the next ping round

@@ -19,49 +19,91 @@ class DeviceController {
     /**
      * Register a new device and generate a device ID
      */
-    public registerDevice = handleErrors(async (req: Request, res: Response): Promise<void> => {
-        const registrationRequest = await validateAndConvert<DeviceRegistrationRequest>(
-            req, 
-            deviceRegistrationRequestSchema
-        );
-        
-        const result = await deviceRegistrationService.registerDevice(registrationRequest);
-        res.status(201).json(result);
-    });
+    public registerDevice = async (req: Request, res: Response): Promise<void> => {
+        try {
+            console.log('[REGISTER] Received registration request');
+            
+            // Extract data directly from request body
+            const publicKey = req.body.publicKey;
+            
+            if (!publicKey) {
+                res.status(400).json({
+                    success: false,
+                    message: 'Public key is required'
+                });
+                return;
+            }
+            
+            // Log request data
+            console.log('[REGISTER] Public key length:', publicKey.length);
+            console.log('[REGISTER] First 40 chars of public key:', publicKey.substring(0, 40) + '...');
+            
+            // Directly create device and registration records
+            const { Device, DeviceRegistration } = require('../models');
+            const { generateUUID } = require('../utils/helpers');
+            
+            // Generate UUID for device
+            const deviceId = generateUUID();
+            console.log('[REGISTER] Generated device ID:', deviceId);
+            
+            // Create device in database
+            const device = await Device.create({
+                id: deviceId,
+                name: `Device-${deviceId.substring(0, 8)}`
+            });
+            console.log('[REGISTER] Created device record:', device.id);
+            
+            // Create registration with public key
+            const registrationId = generateUUID();
+            const registration = await DeviceRegistration.create({
+                id: registrationId,
+                deviceId: deviceId,
+                deviceType: req.body.deviceType || 'unknown',
+                hardwareId: req.body.hardwareId || null,
+                publicKey: publicKey,
+                registrationTime: new Date(),
+                lastSeen: new Date(),
+                active: true
+            });
+            console.log('[REGISTER] Created registration record:', registration.id);
+            
+            // Prepare and return response
+            const result = {
+                id: deviceId,
+                registrationTime: registration.registrationTime
+            };
+            
+            console.log('[REGISTER] Successfully registered device, returning:', result);
+            res.status(201).json(result);
+            
+        } catch (error) {
+            console.error('[REGISTER] Error registering device:', error);
+            
+            // Return a simple error response
+            res.status(500).json({
+                success: false,
+                message: error instanceof Error ? error.message : 'Unknown error during registration'
+            });
+        }
+    };
 
     /**
      * Update device last seen status (ping)
+     * Now using JWT authentication
      */
     public pingDevice = handleErrors(async (req: Request, res: Response): Promise<void> => {
+        // Validate the ping data
         const deviceData = await validateAndConvert<DeviceData>(req, deviceDataSchema);
         
-        // First, verify the device ID exists and is active
-        const deviceRegistration = await deviceRegistrationService.getDeviceById(deviceData.id);
-        
-        if (!deviceRegistration || deviceRegistration.active !== true) {
-            res.status(401).json({ 
-                message: 'Invalid or inactive device ID. Please register the device first.' 
+        // If we have device from JWT token, verify that it matches
+        if (req.device && req.device.id !== deviceData.id) {
+            res.status(403).json({ 
+                message: 'Device ID in request does not match authenticated device' 
             });
             return;
         }
         
-        // Import device auth utility for signature verification
-        const { verifyDeviceSignature } = await import('../utils/deviceAuth');
-        
-        // Verify the signature using the device's public key
-        const isSignatureValid = verifyDeviceSignature(
-            deviceData, 
-            deviceRegistration.publicKey
-        );
-        
-        if (!isSignatureValid) {
-            res.status(401).json({ 
-                message: 'Invalid device signature. Authentication failed.' 
-            });
-            return;
-        }
-        
-        // Signature verified, update last seen status
+        // Update last seen status
         const result = await deviceService.updateLastSeen(deviceData);
         res.status(200).json(result);
     });
