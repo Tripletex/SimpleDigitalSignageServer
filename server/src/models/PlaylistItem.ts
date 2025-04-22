@@ -1,5 +1,6 @@
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo, PrimaryKey, CreatedAt, UpdatedAt, BeforeCreate } from 'sequelize-typescript';
 import { Playlist } from './Playlist';
+import { Tenant } from './Tenant';
 import { generateUUID } from '../utils/helpers';
 
 @Table({
@@ -18,6 +19,13 @@ export class PlaylistItem extends Model {
     allowNull: false
   })
   playlistId!: string;
+  
+  @ForeignKey(() => Tenant)
+  @Column({
+    type: DataType.UUID,
+    allowNull: false
+  })
+  tenantId!: string;
 
   @Column({
     type: DataType.INTEGER,
@@ -52,6 +60,9 @@ export class PlaylistItem extends Model {
   // Relationships
   @BelongsTo(() => Playlist)
   playlist?: Playlist;
+  
+  @BelongsTo(() => Tenant)
+  tenant?: Tenant;
 
   // Hooks
   @BeforeCreate

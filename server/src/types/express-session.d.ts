@@ -12,6 +12,14 @@ declare module 'express-session' {
     invitingTenantId?: string; // For invitation flow
     invitedRole?: string; // For invitation flow
     verificationToken?: string; // Store token for later cleanup
+    
+    // Add user object for tenant security middleware
+    user?: {
+      id: string;
+      email?: string;
+      role?: string;
+      displayName?: string;
+    };
   }
 }
 

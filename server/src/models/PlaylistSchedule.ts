@@ -1,6 +1,7 @@
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo, PrimaryKey, CreatedAt, UpdatedAt, BeforeCreate } from 'sequelize-typescript';
 import { PlaylistGroup } from './PlaylistGroup';
 import { Playlist } from './Playlist';
+import { Tenant } from './Tenant';
 import { generateUUID } from '../utils/helpers';
 
 @Table({
@@ -26,6 +27,13 @@ export class PlaylistSchedule extends Model {
     allowNull: false
   })
   playlistId!: string;
+  
+  @ForeignKey(() => Tenant)
+  @Column({
+    type: DataType.UUID,
+    allowNull: false
+  })
+  tenantId!: string;
 
   @Column({
     type: DataType.STRING,
@@ -57,6 +65,9 @@ export class PlaylistSchedule extends Model {
 
   @BelongsTo(() => Playlist)
   playlist?: Playlist;
+  
+  @BelongsTo(() => Tenant)
+  tenant?: Tenant;
 
   // Hooks
   @BeforeCreate

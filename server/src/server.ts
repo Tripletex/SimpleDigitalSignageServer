@@ -19,6 +19,7 @@ import sequelize, { testConnection } from './config/database';
 import { SESSION_SECRET, COOKIE_CONFIG } from './config/webauthn';
 import userService from './services/userService';
 import { excludeRoutes, isAuthenticated } from './middleware/authMiddleware';
+import { attachTenantSecurityContext } from './middleware/tenantSecurityMiddleware';
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -128,6 +129,13 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     message: 'Server is running' 
   });
+});
+
+// Apply tenant security middleware for all protected routes
+// This middleware adds a secureQuery method to req, which will set the user context for RLS
+app.use((req, res, next) => {
+  // Call the tenant security middleware
+  attachTenantSecurityContext(req, res, next);
 });
 
 // API Routes
