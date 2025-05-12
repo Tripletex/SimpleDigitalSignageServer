@@ -84,6 +84,7 @@ export interface DeviceAuthenticationVerification {
 export interface DeviceAuthenticationResponse {
     success: boolean;
     message: string;
-    token?: string; // JWT token for future authenticated requests
-    expires?: number; // Timestamp when token expires (in milliseconds)
+    apiKey?: string; // API key for future authenticated requests
+    token?: string; // Deprecated: JWT token (kept for backward compatibility)
+    expires?: number; // Deprecated: Token expiration (kept for backward compatibility)
 }

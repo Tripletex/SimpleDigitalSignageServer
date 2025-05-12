@@ -23,7 +23,7 @@ class DeviceRegistrationRepository {
       });
       console.log('[REGISTER] Created device record:', device.id);
       
-      // Create device registration with public key
+      // Create device registration with public key (no tenantId initially)
       const registration = await DeviceRegistration.create({
         id: generateUUID(),
         deviceId: deviceId,
@@ -31,7 +31,8 @@ class DeviceRegistrationRepository {
         hardwareId: request.hardwareId,
         publicKey: request.publicKey,
         registrationTime: new Date(),
-        lastSeen: new Date()
+        lastSeen: new Date(),
+        tenantId: null // explicitly set to null for initial registration
       });
       console.log('[REGISTER] Created registration record:', registration.id);
       

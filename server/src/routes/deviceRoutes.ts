@@ -1,7 +1,7 @@
 // routes/deviceRoutes.ts
 import express, {Router} from 'express';
 import deviceController from '../controllers/deviceController';
-import { requireDeviceAuth } from '../middleware/deviceAuthMiddleware';
+import { requireApiKey, optionalApiKey } from '../middleware/apiKeyAuthMiddleware';
 
 class DeviceRoutes {
   private router = express.Router();
@@ -13,8 +13,8 @@ class DeviceRoutes {
     // Device registration endpoint
     this.router.post('/register', deviceController.registerDevice);
     
-    // Device ping endpoint - secured with JWT authentication
-    this.router.post('/ping', requireDeviceAuth, deviceController.pingDevice);
+    // Device ping endpoint - secured with API key authentication
+    this.router.post('/ping', requireApiKey, deviceController.pingDevice);
     
     // Protected endpoints (requiring JWT auth can be added later)
     // -----------------------
@@ -22,11 +22,11 @@ class DeviceRoutes {
     // Protected endpoints (require user auth)
     // -----------------------
     
-    // Get active ping data - requires user auth or device auth
-    this.router.get('/list', deviceController.getAllDevices);
-    
-    // Get all registered devices (with or without ping data)
-    this.router.get('/registered', deviceController.getAllRegisteredDevices);
+    // Get active ping data - now using optional API key auth
+    this.router.get('/list', optionalApiKey, deviceController.getAllDevices);
+
+    // Get all registered devices - now using optional API key auth
+    this.router.get('/registered', optionalApiKey, deviceController.getAllRegisteredDevices);
     
     // Tenant-specific device endpoints
     // -----------------------
@@ -45,7 +45,7 @@ class DeviceRoutes {
     
     // Get a specific device by ID
     // IMPORTANT: This must be after the other routes to avoid conflicts
-    this.router.get('/:id', deviceController.getDeviceById);
+    this.router.get('/:id', optionalApiKey, deviceController.getDeviceById);
   }
 
   public getRouter():Router {

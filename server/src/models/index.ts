@@ -9,6 +9,7 @@ import { Device } from './Device';
 import { DeviceNetwork } from './DeviceNetwork';
 import { DeviceRegistration } from './DeviceRegistration';
 import { DeviceAuthChallenge } from './DeviceAuthChallenge';
+import { DeviceApiKey } from './DeviceApiKey';
 import { Playlist } from './Playlist';
 import { PlaylistItem } from './PlaylistItem';
 import { PlaylistGroup } from './PlaylistGroup';
@@ -28,6 +29,7 @@ export {
   DeviceNetwork,
   DeviceRegistration,
   DeviceAuthChallenge,
+  DeviceApiKey,
   Playlist,
   PlaylistItem,
   PlaylistGroup,
@@ -44,9 +46,10 @@ const modelArray = [
   TenantMember,
   PendingInvitation,
   Device,
-  DeviceNetwork, 
+  DeviceNetwork,
   DeviceRegistration,
   DeviceAuthChallenge,
+  DeviceApiKey,
   Playlist,
   PlaylistItem,
   PlaylistGroup,

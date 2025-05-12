@@ -1,19 +1,21 @@
 {
   "dev": {
     "driver": "pg",
-    "user": "postgres",
-    "password": "postgres",
+    "user": "signage",
+    "password": "signage",
     "host": "localhost",
-    "database": "digital_signage_dev",
-    "port": 5432
+    "database": "signage",
+    "port": 5432,
+    "typescript": true
   },
   "test": {
     "driver": "pg",
-    "user": "postgres",
-    "password": "postgres",
+    "user": "signage",
+    "password": "signage",
     "host": "localhost",
-    "database": "digital_signage_test",
-    "port": 5432
+    "database": "signage_test",
+    "port": 5432,
+    "typescript": true
   },
   "production": {
     "driver": "pg",

@@ -5,11 +5,11 @@ import { runMigrations } from './runMigrations';
 
 // Database connection configuration
 const dbConfig = {
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || 'postgres',
-  host: process.env.POSTGRES_HOST || 'localhost',
-  database: process.env.POSTGRES_DB || 'digital_signage_dev',
-  port: parseInt(process.env.POSTGRES_PORT || '5432', 10)
+  user: process.env.POSTGRES_USER || process.env.DB_USER || 'signage',
+  password: process.env.POSTGRES_PASSWORD || process.env.DB_PASSWORD || 'signage',
+  host: process.env.POSTGRES_HOST || process.env.DB_HOST || 'localhost',
+  database: process.env.POSTGRES_DB || process.env.DB_NAME || 'signage',
+  port: parseInt(process.env.POSTGRES_PORT || process.env.DB_PORT || '5432', 10)
 };
 
 /**

@@ -89,9 +89,12 @@ class DeviceAuthRoutes {
     
     // Step 1: Generate a challenge - wrapped with error handler
     this.router.post('/challenge', safeHandler(deviceAuthController.generateChallenge));
-    
+
     // Step 2: Verify the challenge response and get a token - wrapped with error handler
     this.router.post('/verify', safeHandler(deviceAuthController.verifyChallenge));
+
+    // DEBUG ONLY: Direct verification endpoint for diagnosing issues
+    this.router.post('/debug-verify', safeHandler(deviceAuthController.debugVerify));
   }
 
   public getRouter(): Router {

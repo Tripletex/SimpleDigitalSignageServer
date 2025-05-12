@@ -7,6 +7,61 @@ import {
 
 class DeviceAuthController {
   /**
+   * DEBUG ONLY: Direct verification endpoint that takes raw data and signature
+   * @param req Request with raw data and signature
+   * @param res Response with verification result
+   */
+  async debugVerify(req: Request, res: Response) {
+    try {
+      const { rawData, signature, publicKeyBase64 } = req.body;
+
+      if (!rawData || !signature || !publicKeyBase64) {
+        return res.status(400).json({
+          success: false,
+          message: 'Raw data, signature, and publicKeyBase64 are required'
+        });
+      }
+
+      console.log(`[AUTH DEBUG] Received direct verification request`);
+      console.log(`[AUTH DEBUG] Raw data: ${rawData}`);
+      console.log(`[AUTH DEBUG] Signature length: ${signature.length}`);
+
+      // Get public key from base64
+      const publicKey = Buffer.from(publicKeyBase64, 'base64').toString('utf8');
+
+      // Try verification directly
+      const crypto = require('crypto');
+      const verifier = crypto.createVerify('SHA256');
+      verifier.update(rawData);
+
+      // Convert signature from base64 to buffer
+      const signatureBuffer = Buffer.from(signature, 'base64');
+
+      try {
+        const result = verifier.verify(publicKey, signatureBuffer);
+        console.log(`[AUTH DEBUG] Direct verification result: ${result ? 'SUCCESS' : 'FAILURE'}`);
+
+        return res.status(200).json({
+          success: result,
+          message: result ? 'Verification successful' : 'Verification failed'
+        });
+      } catch (verifyError) {
+        console.error(`[AUTH DEBUG] Verification error:`, verifyError);
+        return res.status(500).json({
+          success: false,
+          message: `Verification error: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}`
+        });
+      }
+    } catch (error) {
+      console.error(`[AUTH DEBUG] Debug verification error:`, error);
+      return res.status(500).json({
+        success: false,
+        message: `Error: ${error instanceof Error ? error.message : String(error)}`
+      });
+    }
+  }
+
+  /**
    * Generate an authentication challenge for a device
    * @param req Request with deviceId
    * @param res Response with challenge
@@ -94,21 +149,74 @@ class DeviceAuthController {
       console.log(`[AUTH] Signature length: ${signature.length}`);
       
       // Try to verify the challenge
+      // DEBUG: For testing, we'll try with different formats if the standard one fails
       try {
-        const authResult = await deviceAuthService.verifyAuthChallenge(
+        // DEBUG: Save raw request data for comparison
+        try {
+          const fs = require('fs');
+          const path = require('path');
+          const debugDir = path.join('/tmp', 'signage-debug');
+          if (!fs.existsSync(debugDir)) {
+            fs.mkdirSync(debugDir, { recursive: true });
+          }
+
+          const timestamp = Date.now();
+          fs.writeFileSync(
+            path.join(debugDir, `server-req-${timestamp}.json`),
+            JSON.stringify(req.body, null, 2)
+          );
+
+          // Save raw challenge and calculate its hash for comparison
+          const rawChallenge = `{"deviceId":"${deviceId}","challenge":"${challenge}"}`;
+          fs.writeFileSync(path.join(debugDir, `server-challenge-${timestamp}.txt`), rawChallenge);
+
+          const crypto = require('crypto');
+          const hash = crypto.createHash('sha256').update(rawChallenge).digest('hex');
+          fs.writeFileSync(path.join(debugDir, `server-hash-${timestamp}.txt`), hash);
+
+          console.log(`[AUTH] Raw challenge: ${rawChallenge}`);
+          console.log(`[AUTH] Challenge hash: ${hash}`);
+        } catch (debugErr) {
+          console.error('[AUTH] Error saving debug data:', debugErr);
+        }
+
+        let authResult = await deviceAuthService.verifyAuthChallenge(
           deviceId,
           challenge,
           signature
         );
-        
-        console.log(`[AUTH] Verification result: ${authResult.success ? 'SUCCESS' : 'FAILED'}`);
+
+        // If verification failed, try alternative formats (for development/testing only)
+        if (!authResult.success) {
+          console.log(`[AUTH] Initial verification failed, trying with alternative formats...`);
+
+          // Try with multi-line format
+          const multilineData = `{
+  "deviceId": "${deviceId}",
+  "challenge": "${challenge}"
+}`;
+          console.log(`[AUTH] Trying with format 1 (multi-line format)`);
+          const result = await deviceAuthService.verifySignatureWithData(
+            deviceId,
+            challenge,
+            signature,
+            multilineData
+          );
+
+          if (result.success) {
+            console.log(`[AUTH] Alternative format verification succeeded!`);
+            authResult = result;
+          }
+        }
+
+        console.log(`[AUTH] Final verification result: ${authResult.success ? 'SUCCESS' : 'FAILED'}`);
         console.log(`[AUTH] Message: ${authResult.message}`);
-        
+
         // In case of success, log the token (first 20 chars only for security)
         if (authResult.success && authResult.token) {
           console.log(`[AUTH] Generated token (first 20 chars): ${authResult.token.substring(0, 20)}...`);
         }
-        
+
         return res.status(authResult.success ? 200 : 401).json(authResult);
         
       } catch (verifyError) {

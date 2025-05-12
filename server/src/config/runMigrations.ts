@@ -14,8 +14,7 @@ export async function runMigrations(direction: 'up' | 'down' = 'up', count?: num
   return new Promise((resolve, reject) => {
     const args = [
       path.resolve(__dirname, '../../node_modules/.bin/node-pg-migrate'),
-      direction,
-      '--ts-node'
+      direction
     ];
     
     // Add count if specified
@@ -28,11 +27,11 @@ export async function runMigrations(direction: 'up' | 'down' = 'up', count?: num
     const migrate = spawn('node', args, {
       env: {
         ...process.env,
-        PGDATABASE: process.env.POSTGRES_DB || 'digital_signage_dev',
-        PGUSER: process.env.POSTGRES_USER || 'postgres',
-        PGPASSWORD: process.env.POSTGRES_PASSWORD || 'postgres',
-        PGHOST: process.env.POSTGRES_HOST || 'localhost',
-        PGPORT: process.env.POSTGRES_PORT || '5432',
+        PGDATABASE: process.env.POSTGRES_DB || process.env.DB_NAME || 'signage',
+        PGUSER: process.env.POSTGRES_USER || process.env.DB_USER || 'signage',
+        PGPASSWORD: process.env.POSTGRES_PASSWORD || process.env.DB_PASSWORD || 'signage',
+        PGHOST: process.env.POSTGRES_HOST || process.env.DB_HOST || 'localhost',
+        PGPORT: process.env.POSTGRES_PORT || process.env.DB_PORT || '5432',
         NODE_ENV: nodeEnv
       },
       stdio: 'inherit'

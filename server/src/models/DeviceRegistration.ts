@@ -23,9 +23,9 @@ export class DeviceRegistration extends Model {
   @ForeignKey(() => Tenant)
   @Column({
     type: DataType.UUID,
-    allowNull: false
+    allowNull: true
   })
-  tenantId!: string;
+  tenantId?: string;
 
   @Column({
     type: DataType.STRING,

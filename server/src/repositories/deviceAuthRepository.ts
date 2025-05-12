@@ -21,13 +21,14 @@ class DeviceAuthRepository {
     const expires = new Date();
     expires.setMinutes(expires.getMinutes() + expiresInMinutes);
     
-    // Create challenge record
+    // Create challenge record (no tenantId initially)
     const challengeRecord = await DeviceAuthChallenge.create({
       id: generateUUID(),
       deviceId,
       challenge,
       expires,
-      used: false
+      used: false,
+      tenantId: null // explicitly set to null for initial challenge
     });
     
     return {

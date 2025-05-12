@@ -25,30 +25,8 @@ export const verifyDeviceSignature = (
     const truncatedData = data.length > maxLogLength ? 
       data.substring(0, maxLogLength) + '...' : data;
     console.log('[AUTH] Verifying signature for data:', truncatedData);
+    console.log('[AUTH] Data exact bytes (hex):', Buffer.from(data).toString('hex'));
     console.log('[AUTH] Signature (first 40 chars):', signature.substring(0, 40) + '...');
-    
-    // Create a unique debug directory for this verification attempt
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const debugDir = path.join(process.cwd(), 'debug', `verify-${timestamp}`);
-    
-    try {
-      if (!fs.existsSync(debugDir)) {
-        fs.mkdirSync(debugDir, { recursive: true });
-      }
-      
-      // Save input data for debugging
-      fs.writeFileSync(path.join(debugDir, 'data.json'), data);
-      fs.writeFileSync(path.join(debugDir, 'signature.base64'), signature);
-      fs.writeFileSync(path.join(debugDir, 'publicKey.txt'), publicKey);
-      
-      // Also save a binary version of the signature
-      fs.writeFileSync(path.join(debugDir, 'signature.bin'), Buffer.from(signature, 'base64'));
-      
-      console.log(`[AUTH] Debug files saved to: ${debugDir}`);
-    } catch (fsError) {
-      console.error('[AUTH] Error writing debug files:', fsError);
-      // Non-fatal, continue with verification
-    }
     
     // Convert signature from base64 to buffer
     console.log('[AUTH] Converting signature from base64 to buffer');
@@ -79,9 +57,6 @@ export const verifyDeviceSignature = (
           publicKeyPem = '-----BEGIN PUBLIC KEY-----\n' + 
                         publicKey.replace(/(.{64})/g, '$1\n') + 
                         '\n-----END PUBLIC KEY-----';
-          
-          // Write the reconstructed key for debugging
-          fs.writeFileSync(path.join(debugDir, 'publicKey.reconstructed.pem'), publicKeyPem);
         }
       } catch (keyError) {
         console.error('[AUTH] Error processing public key:', keyError);
@@ -244,6 +219,10 @@ export const verifyDeviceSignature = (
           
           // Save successful method for debugging
           try {
+            const debugDir = path.join('/tmp', 'signage-debug');
+            if (!fs.existsSync(debugDir)) {
+              fs.mkdirSync(debugDir, { recursive: true });
+            }
             fs.writeFileSync(
               path.join(debugDir, 'successful_method.txt'),
               `Method: ${method.name}\nResult: ${result}`
@@ -264,6 +243,10 @@ export const verifyDeviceSignature = (
     
     // Save detailed results for debugging
     try {
+      const debugDir = path.join('/tmp', 'signage-debug');
+      if (!fs.existsSync(debugDir)) {
+        fs.mkdirSync(debugDir, { recursive: true });
+      }
       fs.writeFileSync(
         path.join(debugDir, 'verification_results.json'),
         JSON.stringify(methodResults, null, 2)

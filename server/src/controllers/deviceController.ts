@@ -2,12 +2,13 @@ import { Request, Response } from 'express';
 import deviceService from '../services/deviceService';
 import deviceRepository from '../repositories/deviceRepository';
 import deviceRegistrationService from '../services/deviceRegistrationService';
+import deviceApiKeyRepository from '../repositories/deviceApiKeyRepository';
 import sequelize from '../config/database';
-import { 
-    DeviceData, 
-    DeviceRegistrationRequest, 
+import {
+    DeviceData,
+    DeviceRegistrationRequest,
     DeviceClaimRequest,
-    DeviceCampaignAssignmentRequest 
+    DeviceCampaignAssignmentRequest
 } from '../../../shared/src/deviceData';
 import { handleErrors } from "../helpers/errorHandler";
 import { validateAndConvert } from '../validators/validate';
@@ -25,7 +26,7 @@ class DeviceController {
             
             // Extract data directly from request body
             const publicKey = req.body.publicKey;
-            
+
             if (!publicKey) {
                 res.status(400).json({
                     success: false,
@@ -33,10 +34,14 @@ class DeviceController {
                 });
                 return;
             }
-            
+
             // Log request data
             console.log('[REGISTER] Public key length:', publicKey.length);
             console.log('[REGISTER] First 40 chars of public key:', publicKey.substring(0, 40) + '...');
+
+            // For debugging: check if the public key is already in PEM format or needs conversion
+            const isPEM = publicKey.includes('BEGIN PUBLIC KEY');
+            console.log('[REGISTER] Public key is in PEM format:', isPEM ? 'Yes' : 'No');
             
             // Directly create device and registration records
             const { Device, DeviceRegistration } = require('../models');
@@ -53,7 +58,7 @@ class DeviceController {
             });
             console.log('[REGISTER] Created device record:', device.id);
             
-            // Create registration with public key
+            // Create registration with public key (no tenant initially)
             const registrationId = generateUUID();
             const registration = await DeviceRegistration.create({
                 id: registrationId,
@@ -63,17 +68,24 @@ class DeviceController {
                 publicKey: publicKey,
                 registrationTime: new Date(),
                 lastSeen: new Date(),
-                active: true
+                active: true,
+                tenantId: null // explicitly set to null for initial registration
             });
             console.log('[REGISTER] Created registration record:', registration.id);
             
-            // Prepare and return response
+            // Generate an API key for the device
+            console.log('[REGISTER] Generating API key for device:', deviceId);
+            const apiKeyResult = await deviceApiKeyRepository.generateApiKey(deviceId);
+            console.log('[REGISTER] API key generated successfully');
+
+            // Prepare and return response with the API key
             const result = {
                 id: deviceId,
+                apiKey: apiKeyResult.apiKey,
                 registrationTime: registration.registrationTime
             };
-            
-            console.log('[REGISTER] Successfully registered device, returning:', result);
+
+            console.log('[REGISTER] Successfully registered device, returning device ID and API key');
             res.status(201).json(result);
             
         } catch (error) {
@@ -89,20 +101,20 @@ class DeviceController {
 
     /**
      * Update device last seen status (ping)
-     * Now using JWT authentication
+     * Now using API key authentication
      */
     public pingDevice = handleErrors(async (req: Request, res: Response): Promise<void> => {
         // Validate the ping data
         const deviceData = await validateAndConvert<DeviceData>(req, deviceDataSchema);
-        
-        // If we have device from JWT token, verify that it matches
+
+        // If we have device from API key authentication, verify that it matches
         if (req.device && req.device.id !== deviceData.id) {
-            res.status(403).json({ 
-                message: 'Device ID in request does not match authenticated device' 
+            res.status(403).json({
+                message: 'Device ID in request does not match authenticated device'
             });
             return;
         }
-        
+
         // Update last seen status
         const result = await deviceService.updateLastSeen(deviceData);
         res.status(200).json(result);

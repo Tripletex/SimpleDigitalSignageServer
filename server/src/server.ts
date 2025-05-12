@@ -187,8 +187,10 @@ async function initializeDatabase() {
     
     // Check and run migrations if needed
     try {
-      const { runMigrationsIfNeeded } = await import('./config/checkMigrations');
-      await runMigrationsIfNeeded();
+      // Temporarily disable automatic migrations due to TypeScript compatibility issues
+      console.log('Migrations are temporarily disabled - using models to generate schema');
+      // const { runMigrationsIfNeeded } = await import('./config/checkMigrations');
+      // await runMigrationsIfNeeded();
     } catch (error) {
       console.error('Error running migrations:', error);
       // Continue with startup using Sequelize sync as fallback
