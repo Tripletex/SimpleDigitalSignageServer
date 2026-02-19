@@ -9,3 +9,5 @@ node_modules/
 .idea
 server/scripts/device-uuid.txt
 *.pem
+.claude-memory-private
+.claude/settings.local.json
