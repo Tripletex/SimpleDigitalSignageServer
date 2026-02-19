@@ -94,7 +94,16 @@ class DeviceAuthRoutes {
     this.router.post('/verify', safeHandler(deviceAuthController.verifyChallenge));
 
     // DEBUG ONLY: Direct verification endpoint for diagnosing issues
-    this.router.post('/debug-verify', safeHandler(deviceAuthController.debugVerify));
+    // SECURITY: Only available in development environment
+    this.router.post('/debug-verify', (req, res, next) => {
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(404).json({
+          success: false,
+          message: 'Not found'
+        });
+      }
+      next();
+    }, safeHandler(deviceAuthController.debugVerify));
   }
 
   public getRouter(): Router {

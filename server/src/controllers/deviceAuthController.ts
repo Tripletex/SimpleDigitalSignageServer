@@ -8,10 +8,19 @@ import {
 class DeviceAuthController {
   /**
    * DEBUG ONLY: Direct verification endpoint that takes raw data and signature
+   * SECURITY: Only available in development environment
    * @param req Request with raw data and signature
    * @param res Response with verification result
    */
   async debugVerify(req: Request, res: Response) {
+    // SECURITY: Block access in production environment
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(404).json({
+        success: false,
+        message: 'Not found'
+      });
+    }
+
     try {
       const { rawData, signature, publicKeyBase64 } = req.body;
 
@@ -151,33 +160,35 @@ class DeviceAuthController {
       // Try to verify the challenge
       // DEBUG: For testing, we'll try with different formats if the standard one fails
       try {
-        // DEBUG: Save raw request data for comparison
-        try {
-          const fs = require('fs');
-          const path = require('path');
-          const debugDir = path.join('/tmp', 'signage-debug');
-          if (!fs.existsSync(debugDir)) {
-            fs.mkdirSync(debugDir, { recursive: true });
+        // DEBUG: Save raw request data for comparison (development only)
+        if (process.env.NODE_ENV === 'development') {
+          try {
+            const fs = require('fs');
+            const path = require('path');
+            const debugDir = path.join('/tmp', 'signage-debug');
+            if (!fs.existsSync(debugDir)) {
+              fs.mkdirSync(debugDir, { recursive: true });
+            }
+
+            const timestamp = Date.now();
+            fs.writeFileSync(
+              path.join(debugDir, `server-req-${timestamp}.json`),
+              JSON.stringify(req.body, null, 2)
+            );
+
+            // Save raw challenge and calculate its hash for comparison
+            const rawChallenge = `{"deviceId":"${deviceId}","challenge":"${challenge}"}`;
+            fs.writeFileSync(path.join(debugDir, `server-challenge-${timestamp}.txt`), rawChallenge);
+
+            const crypto = require('crypto');
+            const hash = crypto.createHash('sha256').update(rawChallenge).digest('hex');
+            fs.writeFileSync(path.join(debugDir, `server-hash-${timestamp}.txt`), hash);
+
+            console.log(`[AUTH] Raw challenge: ${rawChallenge}`);
+            console.log(`[AUTH] Challenge hash: ${hash}`);
+          } catch (debugErr) {
+            console.error('[AUTH] Error saving debug data:', debugErr);
           }
-
-          const timestamp = Date.now();
-          fs.writeFileSync(
-            path.join(debugDir, `server-req-${timestamp}.json`),
-            JSON.stringify(req.body, null, 2)
-          );
-
-          // Save raw challenge and calculate its hash for comparison
-          const rawChallenge = `{"deviceId":"${deviceId}","challenge":"${challenge}"}`;
-          fs.writeFileSync(path.join(debugDir, `server-challenge-${timestamp}.txt`), rawChallenge);
-
-          const crypto = require('crypto');
-          const hash = crypto.createHash('sha256').update(rawChallenge).digest('hex');
-          fs.writeFileSync(path.join(debugDir, `server-hash-${timestamp}.txt`), hash);
-
-          console.log(`[AUTH] Raw challenge: ${rawChallenge}`);
-          console.log(`[AUTH] Challenge hash: ${hash}`);
-        } catch (debugErr) {
-          console.error('[AUTH] Error saving debug data:', debugErr);
         }
 
         let authResult = await deviceAuthService.verifyAuthChallenge(

@@ -3,6 +3,7 @@ import path from 'path';
 import cors from 'cors';
 import session from 'express-session';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 
 // Routes
 import deviceRoutes from './routes/deviceRoutes';
@@ -20,11 +21,25 @@ import { SESSION_SECRET, COOKIE_CONFIG } from './config/webauthn';
 import userService from './services/userService';
 import { excludeRoutes, isAuthenticated } from './middleware/authMiddleware';
 import { attachTenantSecurityContext } from './middleware/tenantSecurityMiddleware';
+import { sanitizeInput, encodeOutput, addSecurityHeaders, CSP_POLICY } from './middleware/xssProtectionMiddleware';
 
 const app = express();
 const port = process.env.PORT || 4000;
 
-// Middleware
+// Security Middleware - Applied First
+// Helmet for security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: CSP_POLICY.directives,
+  },
+  crossOriginEmbedderPolicy: false, // Allow React dev tools
+  crossOriginResourcePolicy: { policy: "cross-origin" } // Allow client-server communication
+}));
+
+// Additional XSS protection headers
+app.use(addSecurityHeaders);
+
+// CORS configuration
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   credentials: true,
@@ -113,6 +128,13 @@ app.use(express.urlencoded({
 }));
 
 app.use(cookieParser());
+
+// XSS Protection Middleware - Applied after body parsing
+// Input sanitization for all requests
+app.use(sanitizeInput);
+
+// Output encoding for all responses  
+app.use(encodeOutput);
 
 // Session management
 app.use(session({

@@ -2,19 +2,41 @@ import { Request, Response } from 'express';
 import { handleErrors } from "../helpers/errorHandler";
 import userService from '../services/userService';
 import { Authenticator } from '../models/Authenticator';
+import { validateQueryParams } from '../validators/validate';
+import { sanitizeString } from '../middleware/xssProtectionMiddleware';
 
 class UserController {
   /**
    * Get all users (admin only)
+   * Enhanced with XSS protection and input validation
    */
   public getAllUsers = handleErrors(async (req: Request, res: Response): Promise<void> => {
+    // Validate and sanitize query parameters
+    const allowedParams = ['search', 'role', 'limit', 'offset'];
+    const queryParams = validateQueryParams(req, allowedParams);
+    
     const users = await userService.getAllUsers();
     
-    // Map users to safe response format
-    const safeUsers = users.map(user => ({
+    // Apply search filter if provided
+    let filteredUsers = users;
+    if (queryParams.search) {
+      const searchTerm = queryParams.search.toLowerCase();
+      filteredUsers = users.filter(user => 
+        user.email.toLowerCase().includes(searchTerm) ||
+        user.displayName?.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Apply role filter if provided
+    if (queryParams.role) {
+      filteredUsers = filteredUsers.filter(user => user.role === queryParams.role);
+    }
+    
+    // Map users to safe response format with XSS protection
+    const safeUsers = filteredUsers.map(user => ({
       id: user.id,
       email: user.email,
-      displayName: user.displayName,
+      displayName: user.displayName, // Already sanitized by middleware
       role: user.role,
       createdAt: user.createdAt,
       authenticatorCount: user.authenticators ? user.authenticators.length : 0
@@ -22,7 +44,8 @@ class UserController {
     
     res.json({
       success: true,
-      users: safeUsers
+      users: safeUsers,
+      total: safeUsers.length
     });
   });
 
@@ -142,6 +165,7 @@ class UserController {
   
   /**
    * Update current user's profile
+   * Enhanced with comprehensive input validation and XSS protection
    */
   public updateProfile = handleErrors(async (req: Request, res: Response): Promise<void> => {
     if (!req.user) {
@@ -151,15 +175,41 @@ class UserController {
     
     const { displayName } = req.body;
     
-    if (!displayName || displayName.trim() === '') {
-      res.status(400).json({ success: false, message: 'Display name is required' });
+    // Enhanced validation with XSS protection
+    if (!displayName || typeof displayName !== 'string' || displayName.trim() === '') {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Display name is required and must be a valid string' 
+      });
+      return;
+    }
+    
+    // Additional length validation
+    const sanitizedDisplayName = sanitizeString(displayName.trim(), {
+      maxLength: 100,
+      allowHtml: false
+    });
+    
+    if (sanitizedDisplayName.length < 1) {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Display name cannot be empty after sanitization' 
+      });
+      return;
+    }
+    
+    if (sanitizedDisplayName.length > 100) {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Display name must be 100 characters or less' 
+      });
       return;
     }
     
     // Only allow updating display name for own profile
     const updatedUser = await userService.updateUser({
       id: req.user.id,
-      displayName
+      displayName: sanitizedDisplayName
     });
     
     if (!updatedUser) {
@@ -173,7 +223,7 @@ class UserController {
       user: {
         id: updatedUser.id,
         email: updatedUser.email,
-        displayName: updatedUser.displayName,
+        displayName: updatedUser.displayName, // Already sanitized
         role: updatedUser.role
       }
     });
@@ -221,6 +271,7 @@ class UserController {
   
   /**
    * Update passkey name
+   * Enhanced with XSS protection and comprehensive validation
    */
   public updatePasskeyName = handleErrors(async (req: Request, res: Response): Promise<void> => {
     if (!req.user) {
@@ -231,12 +282,38 @@ class UserController {
     const { id } = req.params;
     const { name } = req.body;
     
-    if (!name || name.trim() === '') {
-      res.status(400).json({ success: false, message: 'Name is required' });
+    // Enhanced validation with XSS protection
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Passkey name is required and must be a valid string' 
+      });
       return;
     }
     
-    console.log(`Updating passkey ${id} name to "${name}" for user ${req.user.id}`);
+    // Sanitize and validate the passkey name
+    const sanitizedName = sanitizeString(name.trim(), {
+      maxLength: 50,
+      allowHtml: false
+    });
+    
+    if (sanitizedName.length < 1) {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Passkey name cannot be empty after sanitization' 
+      });
+      return;
+    }
+    
+    if (sanitizedName.length > 50) {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Passkey name must be 50 characters or less' 
+      });
+      return;
+    }
+    
+    console.log(`Updating passkey ${id} name to "${sanitizedName}" for user ${req.user.id}`);
     
     try {
       // Find the authenticator and verify it belongs to the current user
@@ -252,8 +329,8 @@ class UserController {
         return;
       }
       
-      // Update the name
-      authenticator.name = name.trim();
+      // Update the name with sanitized value
+      authenticator.name = sanitizedName;
       await authenticator.save();
       
       console.log(`Passkey ${id} name updated successfully`);
@@ -263,13 +340,13 @@ class UserController {
         message: 'Passkey name updated successfully',
         passkey: {
           id: authenticator.id,
-          name: authenticator.name,
+          name: authenticator.name, // Already sanitized
           createdAt: authenticator.createdAt
         }
       });
     } catch (error) {
       console.error(`Error updating passkey name: ${error}`);
-      res.status(500).json({ success: false, message: `Error updating passkey name: ${error}` });
+      res.status(500).json({ success: false, message: 'Error updating passkey name' });
     }
   });
   
