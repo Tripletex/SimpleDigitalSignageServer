@@ -36,6 +36,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Never log sensitive information (credentials, tokens, PII)
 - Use parameterized queries to prevent SQL injection
 - Apply multi-tenant data isolation throughout the application
+- **Session Security**: Use cryptographically secure session secrets (minimum 32 characters)
+  - Generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+  - Never use default/example secrets in production
+  - See server/SECURITY-SESSION.md for detailed configuration
+- **XSS Protection**: Comprehensive Cross-Site Scripting prevention implemented
+  - Automatic input sanitization and output encoding
+  - Content Security Policy (CSP) headers
+  - Field-specific sanitization rules for different content types
+  - See server/XSS-PROTECTION.md for complete documentation
+- **Tenant Authorization**: Comprehensive multi-tenant authorization system
+  - Role-based access control (Owner/Admin/Member roles)
+  - Cached membership validation for performance
+  - Authorization bypass prevention for all tenant-specific endpoints
+  - See server/TENANT-AUTHORIZATION.md for complete documentation
 
 ## Project Structure
 - Server: Express backend with TypeScript, PostgreSQL database
