@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import * as tenantService from '../services/tenantService';
+import { csrfFetch } from '../utils/csrfFetch';
 import '../styles/Organizations.css';
 
 // Define enums locally to avoid importing from outside src directory
@@ -130,11 +131,11 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
+      const response = await csrfFetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         setIsAuthenticated(false);
         setUser(null);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { UserProfile } from '../types/user';
 import * as userService from '../services/userService';
+import { csrfFetch } from '../utils/csrfFetch';
 import { prepareRegistrationOptions, prepareRegistrationResponse, 
   arrayBufferToBase64, base64ToArrayBuffer } from '../utils/webauthn';
 import '../styles/Profile.css';
@@ -115,7 +116,7 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, setIsAuthenticated }) 
       }) as PublicKeyCredential;
       
       // Step 4: Verify the registration using our utility
-      const verifyResponse = await fetch('/api/auth/webauthn/register', {
+      const verifyResponse = await csrfFetch('/api/auth/webauthn/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

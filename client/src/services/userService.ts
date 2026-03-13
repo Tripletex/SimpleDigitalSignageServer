@@ -1,4 +1,5 @@
 import { UserProfile, Passkey } from '../types/user';
+import { csrfFetch } from '../utils/csrfFetch';
 
 /**
  * Fetch the current user's profile
@@ -24,7 +25,7 @@ export const getUserProfile = async (): Promise<UserProfile> => {
  * Update the current user's profile
  */
 export const updateProfile = async (displayName: string): Promise<{ user: any }> => {
-  const response = await fetch('/api/users/update', {
+  const response = await csrfFetch('/api/users/update', {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -71,7 +72,7 @@ export const getPasskeys = async (): Promise<Passkey[]> => {
  * Update a passkey's name
  */
 export const updatePasskeyName = async (passkeyId: string, name: string): Promise<any> => {
-  const response = await fetch(`/api/users/passkeys/${passkeyId}`, {
+  const response = await csrfFetch(`/api/users/passkeys/${passkeyId}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -98,7 +99,7 @@ export const updatePasskeyName = async (passkeyId: string, name: string): Promis
  * Delete a passkey
  */
 export const deletePasskey = async (passkeyId: string): Promise<void> => {
-  const response = await fetch(`/api/users/passkeys/${passkeyId}`, {
+  const response = await csrfFetch(`/api/users/passkeys/${passkeyId}`, {
     method: 'DELETE',
     credentials: 'include',
   });

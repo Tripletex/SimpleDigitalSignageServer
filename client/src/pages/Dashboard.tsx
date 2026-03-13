@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DeviceRegistration } from '../services/deviceService';
 import moment from 'moment';
 import Layout from '../components/Layout';
+import { csrfFetch } from '../utils/csrfFetch';
 import '../App.css';
 import '../styles/Dashboard.css';
 
@@ -47,11 +48,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setIsAuthenticated, setUser
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
+      const response = await csrfFetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         setIsAuthenticated(false);
         setUser(null);

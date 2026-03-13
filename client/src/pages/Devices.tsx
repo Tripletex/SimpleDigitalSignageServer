@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { csrfFetch } from '../utils/csrfFetch';
 import moment from 'moment';
 import '../styles/Devices.css';
 import { DeviceRegistration } from '../services/deviceService';
@@ -126,11 +127,11 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
+      const response = await csrfFetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         setIsAuthenticated(false);
         setUser(null);

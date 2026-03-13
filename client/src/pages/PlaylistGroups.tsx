@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { csrfFetch } from '../utils/csrfFetch';
 import '../styles/PlaylistGroups.css';
 
 // Types definitions for playlist groups with schedules
@@ -193,11 +194,11 @@ const PlaylistGroups: React.FC<PlaylistGroupsProps> = ({
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
+      const response = await csrfFetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         setIsAuthenticated(false);
         setUser(null);
@@ -223,24 +224,24 @@ const PlaylistGroups: React.FC<PlaylistGroupsProps> = ({
     }
 
     try {
-      const tenant = currentTenant || (localStorage.getItem('currentTenant') 
-        ? JSON.parse(localStorage.getItem('currentTenant')!) 
+      const tenant = currentTenant || (localStorage.getItem('currentTenant')
+        ? JSON.parse(localStorage.getItem('currentTenant')!)
         : null);
-      
+
       if (!tenant) {
         setError('No tenant selected');
         return;
       }
-      
+
       // Create group object
       const newGroup = {
         name: newGroupName,
         description: newGroupDescription || undefined,
         schedules: []
       };
-      
+
       // Send to API
-      const response = await fetch(`/api/tenant/${tenant.id}/playlist-groups`, {
+      const response = await csrfFetch(`/api/tenant/${tenant.id}/playlist-groups`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -415,7 +416,7 @@ const PlaylistGroups: React.FC<PlaylistGroupsProps> = ({
       };
       
       // Send to API
-      const response = await fetch(`/api/tenant/${tenant.id}/playlist-groups/${selectedGroup}/schedules`, {
+      const response = await csrfFetch(`/api/tenant/${tenant.id}/playlist-groups/${selectedGroup}/schedules`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -476,7 +477,7 @@ const PlaylistGroups: React.FC<PlaylistGroupsProps> = ({
         }
         
         // Send delete request to API
-        const response = await fetch(`/api/tenant/${tenant.id}/playlist-groups/${groupId}`, {
+        const response = await csrfFetch(`/api/tenant/${tenant.id}/playlist-groups/${groupId}`, {
           method: 'DELETE',
           credentials: 'include',
           headers: {
@@ -560,7 +561,7 @@ const PlaylistGroups: React.FC<PlaylistGroupsProps> = ({
         const scheduleId = groupData.playlistGroup.schedules[scheduleIndex].id;
         
         // Send delete request to API
-        const response = await fetch(`/api/tenant/${tenant.id}/playlist-groups/${groupId}/schedules/${scheduleId}`, {
+        const response = await csrfFetch(`/api/tenant/${tenant.id}/playlist-groups/${groupId}/schedules/${scheduleId}`, {
           method: 'DELETE',
           credentials: 'include',
           headers: {
@@ -716,7 +717,7 @@ const PlaylistGroups: React.FC<PlaylistGroupsProps> = ({
                   
                   if (existingPlaylist) {
                     // Update existing playlist
-                    await fetch(`/api/tenant/${tenant.id}/playlists/${existingPlaylist.id}`, {
+                    await csrfFetch(`/api/tenant/${tenant.id}/playlists/${existingPlaylist.id}`, {
                       method: 'PUT',
                       credentials: 'include',
                       headers: { 'Content-Type': 'application/json' },
@@ -724,7 +725,7 @@ const PlaylistGroups: React.FC<PlaylistGroupsProps> = ({
                     });
                   } else {
                     // Create new playlist
-                    await fetch(`/api/tenant/${tenant.id}/playlists`, {
+                    await csrfFetch(`/api/tenant/${tenant.id}/playlists`, {
                       method: 'POST',
                       credentials: 'include',
                       headers: { 'Content-Type': 'application/json' },

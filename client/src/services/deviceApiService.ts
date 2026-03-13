@@ -1,3 +1,5 @@
+import { csrfFetch } from '../utils/csrfFetch';
+
 // Device API service - New file to bypass TypeScript caching issues
 // This file replaces deviceService.ts
 
@@ -95,7 +97,7 @@ export const claimDevice = async (
     displayName
   };
   
-  const response = await fetch(`/api/device/tenant/${tenantId}/claim`, {
+  const response = await csrfFetch(`/api/device/tenant/${tenantId}/claim`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -118,7 +120,7 @@ export const releaseDevice = async (
   tenantId: string,
   deviceId: string
 ): Promise<DeviceClaimResponse> => {
-  const response = await fetch(`/api/device/tenant/${tenantId}/devices/${deviceId}`, {
+  const response = await csrfFetch(`/api/device/tenant/${tenantId}/devices/${deviceId}`, {
     method: 'DELETE',
   });
   
@@ -160,7 +162,7 @@ export const assignCampaign = async (
     campaignId
   };
   
-  const response = await fetch(`/api/device/tenant/${tenantId}/devices/${deviceId}/campaign`, {
+  const response = await csrfFetch(`/api/device/tenant/${tenantId}/devices/${deviceId}/campaign`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

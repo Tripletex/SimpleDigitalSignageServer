@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { csrfFetch } from '../utils/csrfFetch';
 import '../styles/Login.css';
 import { 
   prepareRegistrationOptions, 
@@ -280,7 +281,7 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated, setUser }) => {
     
     try {
       // 1. Complete registration with display name
-      const completeResponse = await fetch('/api/auth/complete-registration', {
+      const completeResponse = await csrfFetch('/api/auth/complete-registration', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -355,8 +356,8 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated, setUser }) => {
       
       console.log('Credential created:', credential);
       
-      // 4. Verify the registration
-      const verifyResponse = await fetch('/api/auth/webauthn/register', {
+      // 4. Verify the registration (session exists after complete-registration, needs CSRF)
+      const verifyResponse = await csrfFetch('/api/auth/webauthn/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

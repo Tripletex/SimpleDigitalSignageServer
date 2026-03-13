@@ -1,3 +1,5 @@
+import { csrfFetch } from '../utils/csrfFetch';
+
 // Define enum locally to avoid importing from outside src directory
 export enum TenantRole {
   OWNER = 'owner',
@@ -59,7 +61,7 @@ export const getUserTenants = async (): Promise<Tenant[]> => {
 export const forceCreatePersonalTenant = async (): Promise<any> => {
   console.log('Force creating personal tenant...');
   try {
-    const response = await fetch('/api/tenants/personal/force-create', {
+    const response = await csrfFetch('/api/tenants/personal/force-create', {
       method: 'POST',
       credentials: 'include'
     });
@@ -97,7 +99,7 @@ export const getTenantDetails = async (tenantId: string): Promise<TenantDetail> 
 
 // Create a new tenant
 export const createTenant = async (name: string): Promise<Tenant> => {
-  const response = await fetch('/api/tenants', {
+  const response = await csrfFetch('/api/tenants', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -117,7 +119,7 @@ export const createTenant = async (name: string): Promise<Tenant> => {
 
 // Update a tenant
 export const updateTenant = async (tenantId: string, name: string): Promise<Tenant> => {
-  const response = await fetch(`/api/tenants/${tenantId}`, {
+  const response = await csrfFetch(`/api/tenants/${tenantId}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -137,7 +139,7 @@ export const updateTenant = async (tenantId: string, name: string): Promise<Tena
 
 // Delete a tenant
 export const deleteTenant = async (tenantId: string): Promise<void> => {
-  const response = await fetch(`/api/tenants/${tenantId}`, {
+  const response = await csrfFetch(`/api/tenants/${tenantId}`, {
     method: 'DELETE',
     credentials: 'include'
   });
@@ -150,7 +152,7 @@ export const deleteTenant = async (tenantId: string): Promise<void> => {
 
 // Invite a user to a tenant
 export const inviteUser = async (tenantId: string, email: string, role: TenantRole): Promise<void> => {
-  const response = await fetch(`/api/tenants/${tenantId}/invite`, {
+  const response = await csrfFetch(`/api/tenants/${tenantId}/invite`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -167,7 +169,7 @@ export const inviteUser = async (tenantId: string, email: string, role: TenantRo
 
 // Update a member's role
 export const updateMemberRole = async (tenantId: string, userId: string, role: TenantRole): Promise<void> => {
-  const response = await fetch(`/api/tenants/${tenantId}/members/${userId}/role`, {
+  const response = await csrfFetch(`/api/tenants/${tenantId}/members/${userId}/role`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -184,7 +186,7 @@ export const updateMemberRole = async (tenantId: string, userId: string, role: T
 
 // Remove a member from a tenant
 export const removeMember = async (tenantId: string, userId: string): Promise<void> => {
-  const response = await fetch(`/api/tenants/${tenantId}/members/${userId}`, {
+  const response = await csrfFetch(`/api/tenants/${tenantId}/members/${userId}`, {
     method: 'DELETE',
     credentials: 'include'
   });
@@ -197,7 +199,7 @@ export const removeMember = async (tenantId: string, userId: string): Promise<vo
 
 // Leave a tenant
 export const leaveTenant = async (tenantId: string): Promise<void> => {
-  const response = await fetch(`/api/tenants/${tenantId}/leave`, {
+  const response = await csrfFetch(`/api/tenants/${tenantId}/leave`, {
     method: 'POST',
     credentials: 'include'
   });

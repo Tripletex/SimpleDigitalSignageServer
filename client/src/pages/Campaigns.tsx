@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { csrfFetch } from '../utils/csrfFetch';
 import '../styles/Campaigns.css';
 
 // Types definitions for campaigns with schedules
@@ -193,11 +194,11 @@ const Campaigns: React.FC<CampaignsProps> = ({
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
+      const response = await csrfFetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         setIsAuthenticated(false);
         setUser(null);
@@ -240,7 +241,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
       };
       
       // Send to API
-      const response = await fetch(`/api/tenant/${tenant.id}/playlist-groups`, {
+      const response = await csrfFetch(`/api/tenant/${tenant.id}/playlist-groups`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -415,7 +416,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
       };
       
       // Send to API
-      const response = await fetch(`/api/tenant/${tenant.id}/playlist-groups/${selectedCampaign}/schedules`, {
+      const response = await csrfFetch(`/api/tenant/${tenant.id}/playlist-groups/${selectedCampaign}/schedules`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -476,7 +477,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
         }
         
         // Send delete request to API
-        const response = await fetch(`/api/tenant/${tenant.id}/playlist-groups/${campaignId}`, {
+        const response = await csrfFetch(`/api/tenant/${tenant.id}/playlist-groups/${campaignId}`, {
           method: 'DELETE',
           credentials: 'include',
           headers: {
@@ -560,7 +561,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
         const scheduleId = campaignData.playlistGroup.schedules[scheduleIndex].id;
         
         // Send delete request to API
-        const response = await fetch(`/api/tenant/${tenant.id}/playlist-groups/${campaignId}/schedules/${scheduleId}`, {
+        const response = await csrfFetch(`/api/tenant/${tenant.id}/playlist-groups/${campaignId}/schedules/${scheduleId}`, {
           method: 'DELETE',
           credentials: 'include',
           headers: {
@@ -722,7 +723,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
                   
                   if (existingPlaylist) {
                     // Update existing playlist
-                    await fetch(`/api/tenant/${tenant.id}/playlists/${existingPlaylist.id}`, {
+                    await csrfFetch(`/api/tenant/${tenant.id}/playlists/${existingPlaylist.id}`, {
                       method: 'PUT',
                       credentials: 'include',
                       headers: { 'Content-Type': 'application/json' },
@@ -730,7 +731,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
                     });
                   } else {
                     // Create new playlist
-                    await fetch(`/api/tenant/${tenant.id}/playlists`, {
+                    await csrfFetch(`/api/tenant/${tenant.id}/playlists`, {
                       method: 'POST',
                       credentials: 'include',
                       headers: { 'Content-Type': 'application/json' },

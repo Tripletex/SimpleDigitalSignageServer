@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { csrfFetch } from '../utils/csrfFetch';
 import '../styles/Users.css';
 
 interface UsersProps {
@@ -48,11 +49,11 @@ const Users: React.FC<UsersProps> = ({ user, setIsAuthenticated, setUser }) => {
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
+      const response = await csrfFetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         setIsAuthenticated(false);
         setUser(null);

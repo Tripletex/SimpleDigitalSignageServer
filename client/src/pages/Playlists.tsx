@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { csrfFetch } from '../utils/csrfFetch';
 import '../styles/Playlists.css';
 
 // Types definitions matching the required JSON structure
@@ -151,11 +152,11 @@ const Playlists: React.FC<PlaylistsProps> = ({
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
+      const response = await csrfFetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         setIsAuthenticated(false);
         setUser(null);
@@ -197,7 +198,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
       };
       
       // Send to API
-      const response = await fetch(`/api/tenant/${tenant.id}/playlists`, {
+      const response = await csrfFetch(`/api/tenant/${tenant.id}/playlists`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -306,7 +307,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
       };
       
       // Send to API
-      const response = await fetch(`/api/tenant/${tenant.id}/playlists/${playlist.id}`, {
+      const response = await csrfFetch(`/api/tenant/${tenant.id}/playlists/${playlist.id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -314,13 +315,13 @@ const Playlists: React.FC<PlaylistsProps> = ({
         },
         body: JSON.stringify(updatedPlaylist)
       });
-      
+
       if (!response.ok) {
         throw new Error(`Server returned ${response.status}: ${response.statusText}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         // Update local state
         const playlistIndex = playlistConfig!.playlists.findIndex(
@@ -367,7 +368,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
         }
         
         // Send to API
-        const response = await fetch(`/api/tenant/${tenant.id}/playlists/${playlist.id}`, {
+        const response = await csrfFetch(`/api/tenant/${tenant.id}/playlists/${playlist.id}`, {
           method: 'DELETE',
           credentials: 'include',
           headers: {
@@ -436,7 +437,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
         };
         
         // Send to API
-        const response = await fetch(`/api/tenant/${tenant.id}/playlists/${playlist.id}`, {
+        const response = await csrfFetch(`/api/tenant/${tenant.id}/playlists/${playlist.id}`, {
           method: 'PUT',
           credentials: 'include',
           headers: {
