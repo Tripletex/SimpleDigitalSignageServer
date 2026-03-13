@@ -21,8 +21,8 @@ services:
     
   # Server service (uncomment to run the server in Docker)
   # server:
-  #   build: 
-  #     context: ./server
+  #   build:
+  #     context: .
   #     dockerfile: Dockerfile
   #   container_name: signage-server
   #   ports:
@@ -44,8 +44,6 @@ services:
   #       condition: service_healthy
   #   networks:
   #     - signage-network
-  #   volumes:
-  #     - ./server:/app
   #   restart: unless-stopped
   
   # Client service (uncomment to run the client in Docker)

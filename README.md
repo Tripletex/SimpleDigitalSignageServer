@@ -6,50 +6,49 @@ This is a Simple Digital Signage Server project for managing device registration
 
 ### Prerequisites
 
-- Node.js
-- Docker and Docker Compose
-- TypeScript
+- [Deno](https://deno.land/) (latest)
+- Docker and Docker Compose (for PostgreSQL)
+- Node.js (for the React client)
 
 ### Running PostgreSQL Locally
 
-The project includes a Docker Compose configuration for running Postgresql locally:
+The project includes a Docker Compose configuration for running PostgreSQL locally:
 
 ```bash
 # Start local PostgreSQL instance
 docker-compose up -d
 ```
 
-To verify the Postygresql container is running:
+### Starting the Server
+
 ```bash
-docker ps
+cd server
+deno task dev
 ```
 
-### Local Development Setup
+The server starts on port 4000 with auto-reload on file changes.
 
-For development with the local PostgreSQL instance, use the provided dev script:
+### Starting the Client
 
 ```bash
-# From the server directory
-./dev.sh
+cd client
+npm install
+npm start
+```
+
+### Running Tests
+
+```bash
+cd server
+deno task test
 ```
 
 ### Environment Variables
 
-
-### Starting the Server
-
-Install dependencies and start the server:
-
-```bash
-# Install dependencies
-cd server
-npm install
-
-# Start the development server
-npm start
-```
-
-The server will automatically create the required PostgreSQL tables on startup.
+Copy `server/.env.example` to `server/.env` and configure:
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` — PostgreSQL connection
+- `SESSION_SECRET` — Cryptographically secure session secret (min 32 chars)
+- `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN` — WebAuthn relying party config
 
 ## API Endpoints
 
