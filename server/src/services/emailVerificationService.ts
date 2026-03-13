@@ -3,6 +3,10 @@ import { Op } from 'sequelize';
 import { TenantRole } from '../../../shared/src/tenantData';
 
 class EmailVerificationService {
+  private truncateToken(token: string): string {
+    return token.substring(0, 8) + '...';
+  }
+
   /**
    * Create an email verification token
    */
@@ -41,7 +45,7 @@ class EmailVerificationService {
       token
     });
     
-    console.log(`Created verification token for ${email}: ${verification.token}`);
+    console.log(`Created verification token for ${email}: ${this.truncateToken(verification.token)}`);
     return verification.token;
   }
   
@@ -84,7 +88,7 @@ class EmailVerificationService {
       token
     });
     
-    console.log(`Created invitation token for ${email} to tenant ${tenantId}: ${invitation.token}`);
+    console.log(`Created invitation token for ${email} to tenant ${tenantId}: ${this.truncateToken(invitation.token)}`);
     return invitation.token;
   }
   
@@ -109,7 +113,7 @@ class EmailVerificationService {
     });
     
     if (!verification) {
-      console.log(`Invalid or expired token: ${token}`);
+      console.log(`Invalid or expired token: ${this.truncateToken(token)}`);
       return null;
     }
     
@@ -123,18 +127,16 @@ class EmailVerificationService {
       invitedRole: verification.invitedRole
     };
     
-    // In a production environment, we would typically reset the token or add a "verified" flag
-    // But for this implementation, we'll let the token remain valid until it expires or is used to complete registration
-    // This allows the user to reload the page during the registration process without losing state
-    
+    // Delete the token to prevent replay attacks (CWE-294)
+    // Session state (req.session.verifiedEmail) is the sole mechanism for page reload survival
+    await verification.destroy();
+
     if (isInvitation) {
-      console.log(`Verified invitation for ${result.email} to tenant ${result.invitingTenantId} with token ${token}`);
+      console.log(`Verified invitation for ${result.email} to tenant ${result.invitingTenantId} with token ${this.truncateToken(token)}`);
     } else {
-      console.log(`Verified email ${result.email} with token ${token}`);
+      console.log(`Verified email ${result.email} with token ${this.truncateToken(token)}`);
     }
-    
-    // We don't delete the token yet, but we will need to delete it once registration is complete
-    
+
     return result;
   }
   

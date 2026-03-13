@@ -13,55 +13,74 @@ class SetupController {
    * Check database connection and server status
    */
   public healthCheck = handleErrors(async (req: Request, res: Response): Promise<void> => {
+    const isDev = process.env.NODE_ENV === 'development';
+
     try {
-      // Test database connection
       const dbConnected = await testConnection();
-      
-      // Check for tables (run a query to get all table names)
-      const tables = await sequelize.query(
-        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'", 
-        { type: QueryTypes.SELECT }
-      );
-      
-      // Get counts for key tables
-      const [
-        userCount, 
-        tenantCount, 
-        tenantMemberCount,
-        deviceCount
-      ] = await Promise.all([
-        sequelize.query("SELECT COUNT(*) FROM users", { type: QueryTypes.SELECT }),
-        sequelize.query("SELECT COUNT(*) FROM tenants", { type: QueryTypes.SELECT }),
-        sequelize.query("SELECT COUNT(*) FROM tenant_members", { type: QueryTypes.SELECT }),
-        sequelize.query("SELECT COUNT(*) FROM devices", { type: QueryTypes.SELECT })
-      ]);
-      
-      res.json({
-        success: true,
-        status: 'Server is running',
-        database: {
-          connected: dbConnected,
-          tables: tables,
-          counts: {
-            users: (userCount[0] as any).count,
-            tenants: (tenantCount[0] as any).count,
-            tenantMembers: (tenantMemberCount[0] as any).count,
-            devices: (deviceCount[0] as any).count
-          }
-        },
-        environment: {
-          nodeEnv: process.env.NODE_ENV || 'development',
-          dbHost: process.env.DB_HOST || 'localhost',
-          dbName: process.env.DB_NAME || 'signage'
-        },
-        version: '1.0.0'
-      });
+
+      if (isDev) {
+        // Full detailed response for development
+        const tables = await sequelize.query(
+          "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'",
+          { type: QueryTypes.SELECT }
+        );
+
+        const [
+          userCount,
+          tenantCount,
+          tenantMemberCount,
+          deviceCount
+        ] = await Promise.all([
+          sequelize.query("SELECT COUNT(*) FROM users", { type: QueryTypes.SELECT }),
+          sequelize.query("SELECT COUNT(*) FROM tenants", { type: QueryTypes.SELECT }),
+          sequelize.query("SELECT COUNT(*) FROM tenant_members", { type: QueryTypes.SELECT }),
+          sequelize.query("SELECT COUNT(*) FROM devices", { type: QueryTypes.SELECT })
+        ]);
+
+        res.json({
+          success: true,
+          status: 'Server is running',
+          database: {
+            connected: dbConnected,
+            tables: tables,
+            counts: {
+              users: (userCount[0] as any).count,
+              tenants: (tenantCount[0] as any).count,
+              tenantMembers: (tenantMemberCount[0] as any).count,
+              devices: (deviceCount[0] as any).count
+            }
+          },
+          environment: {
+            nodeEnv: process.env.NODE_ENV || 'development',
+            dbHost: process.env.DB_HOST || 'localhost',
+            dbName: process.env.DB_NAME || 'signage'
+          },
+          version: '1.0.0'
+        });
+      } else {
+        // Minimal response for production — no database details
+        res.json({
+          status: 'ok',
+          timestamp: new Date().toISOString(),
+          message: 'Server is running'
+        });
+      }
     } catch (error) {
       console.error('Health check error:', error);
-      res.status(500).json({
-        success: false,
-        error: String(error)
-      });
+      if (isDev) {
+        res.status(500).json({
+          status: 'error',
+          timestamp: new Date().toISOString(),
+          message: 'Health check failed',
+          error: String(error)
+        });
+      } else {
+        res.status(500).json({
+          status: 'error',
+          timestamp: new Date().toISOString(),
+          message: 'Health check failed'
+        });
+      }
     }
   });
   

@@ -2,7 +2,8 @@ import tenantRepository from '../repositories/tenantRepository';
 import userRepository from '../repositories/userRepository';
 import userService from '../services/userService';
 import emailVerificationService from '../services/emailVerificationService';
-import { 
+import { cacheManager } from '../middleware/tenantAuthorizationMiddleware';
+import {
   Tenant, 
   TenantMember, 
   TenantRole, 
@@ -146,6 +147,7 @@ class TenantService {
     }
     
     await tenantRepository.deleteTenant(tenantId);
+    cacheManager.clearTenant(tenantId);
   }
   
   // Member operations
@@ -185,6 +187,8 @@ class TenantService {
         inviterUserId
       );
       
+      cacheManager.clearUser(user.id);
+
       // No need for a verification token for existing users
       console.log(`Invitation sent to existing user ${email} for tenant "${tenant.name}" with role ${role}`);
       return null;
@@ -226,6 +230,7 @@ class TenantService {
     }
     
     await tenantRepository.updateTenantMemberRole(tenantId, targetUserId, newRole);
+    cacheManager.clearUser(targetUserId);
   }
   
   async removeMember(tenantId: string, removerUserId: string, targetUserId: string): Promise<void> {
@@ -261,8 +266,9 @@ class TenantService {
     }
     
     await tenantRepository.removeTenantMember(tenantId, targetUserId);
+    cacheManager.clearUser(targetUserId);
   }
-  
+
   // User can leave a tenant they are a member of
   async leaveTenant(tenantId: string, userId: string): Promise<void> {
     // Check if the user is a member
@@ -287,8 +293,9 @@ class TenantService {
     }
     
     await tenantRepository.removeTenantMember(tenantId, userId);
+    cacheManager.clearUser(userId);
   }
-  
+
   // Create the personal tenant for a user when they first log in
   async createPersonalTenantForUser(userId: string, email: string, displayName?: string): Promise<TenantResponse> {
     const tenant = await tenantRepository.createPersonalTenantIfNeeded(userId, email, displayName);

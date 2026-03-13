@@ -9,7 +9,8 @@ import webauthnService from '../services/webauthnService';
 import tenantService from '../services/tenantService';
 import tenantRepository from '../repositories/tenantRepository';
 import emailVerificationService from '../services/emailVerificationService';
-import { EmailVerification } from '../models/EmailVerification';
+import sequelize from '../config/database';
+import { User } from '../models/User';
 
 // Using the Session type defined in types/express-session.d.ts
 
@@ -42,7 +43,7 @@ class AuthController {
       return;
     }
     
-    console.log(`Verifying email token: ${token}`);
+    console.log(`Verifying email token: ${token.substring(0, 8)}...`);
     
     // Verify the token
     const verification = await emailVerificationService.verifyEmailToken(token);
@@ -58,7 +59,6 @@ class AuthController {
     // Store verified email in session for registration
     req.session.verifiedEmail = verification.email;
     req.session.isFirstUser = verification.isFirstUser;
-    req.session.verificationToken = token; // Store the token for later cleanup
     
     // If this is an invitation, store invitation details
     if (verification.isInvitation) {
@@ -66,29 +66,33 @@ class AuthController {
       req.session.invitedRole = verification.invitedRole;
     }
     
-    // Save session explicitly to ensure it's persisted
+    // Save session and respond only after persistence is confirmed
     req.session.save((err) => {
       if (err) {
         console.error('Error saving session during verification:', err);
-      } else {
-        console.log('Session saved successfully with verified email:', req.session.verifiedEmail);
+        res.status(500).json({
+          success: false,
+          message: 'Error saving verification session'
+        });
+        return;
       }
-    });
-    
-    // Return success with appropriate message
-    const message = verification.isInvitation
-      ? `You've been invited to join an organization. Please complete registration.`
-      : 'Email verified successfully';
-      
-    res.json({
-      success: true,
-      message,
-      email: verification.email,
-      isFirstUser: verification.isFirstUser,
-      isInvitation: verification.isInvitation,
-      invitingTenant: verification.invitingTenantId 
-        ? { id: verification.invitingTenantId } 
-        : undefined
+
+      console.log('Session saved successfully with verified email:', req.session.verifiedEmail);
+
+      const message = verification.isInvitation
+        ? `You've been invited to join an organization. Please complete registration.`
+        : 'Email verified successfully';
+
+      res.json({
+        success: true,
+        message,
+        email: verification.email,
+        isFirstUser: verification.isFirstUser,
+        isInvitation: verification.isInvitation,
+        invitingTenant: verification.invitingTenantId
+          ? { id: verification.invitingTenantId }
+          : undefined
+      });
     });
   });
   
@@ -106,26 +110,30 @@ class AuthController {
     }
     
     const email = req.session.verifiedEmail;
-    const isFirstUser = req.session.isFirstUser || false;
     const displayName = req.body.displayName || email.split('@')[0];
-    
+
     console.log(`Completing registration for verified email: ${email}`);
-    
+
     // Check if user already exists (shouldn't happen, but just in case)
     const existingUser = await userService.getUserByEmail(email);
     if (existingUser) {
-      res.status(400).json({ 
-        success: false, 
-        message: 'User with this email already exists' 
+      res.status(400).json({
+        success: false,
+        message: 'User with this email already exists'
       });
       return;
     }
-    
-    // Determine role based on whether this is the first user
-    const role = isFirstUser ? UserRole.ADMIN : UserRole.USER;
-    
-    // Create the user
-    const user = await userService.createUser(email, displayName, role);
+
+    // Atomic first-user determination and user creation (CWE-362 fix)
+    // Do NOT trust req.session.isFirstUser — it was set at email verification time
+    // and may be stale if another user registered between verification and completion.
+    // Advisory lock serializes concurrent first-user checks across all sessions.
+    const user = await sequelize.transaction(async (t) => {
+      await sequelize.query('SELECT pg_advisory_xact_lock(1)', { transaction: t });
+      const userCount = await User.count({ transaction: t });
+      const role = userCount === 0 ? UserRole.ADMIN : UserRole.USER;
+      return await userService.createUser(email, displayName, role, t);
+    });
     
     // Create personal tenant
     await tenantService.createPersonalTenantForUser(user.id, user.email, user.displayName);
@@ -153,40 +161,44 @@ class AuthController {
       }
     }
     
-    // Clean up the verification token
-    try {
-      if (req.session.verificationToken) {
-        await EmailVerification.destroy({
-          where: { token: req.session.verificationToken }
+    // Regenerate session to prevent session fixation (also clears old verification data)
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error('Error regenerating session:', err);
+        res.status(500).json({
+          success: false,
+          message: 'Error creating secure session'
         });
-        console.log(`Deleted verification token after successful registration`);
+        return;
       }
-    } catch (error) {
-      console.error('Error deleting verification token:', error);
-      // Continue even if this fails
-    }
-    
-    // Clean verified email and invitation info from session
-    delete req.session.verifiedEmail;
-    delete req.session.isFirstUser;
-    delete req.session.invitingTenantId;
-    delete req.session.invitedRole;
-    delete req.session.verificationToken;
-    
-    // Set user session for WebAuthn registration
-    req.session.userId = user.id;
-    req.session.username = user.email;
-    req.session.role = user.role;
-    
-    res.status(201).json({
-      success: true,
-      message: 'Registration completed successfully',
-      user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        role: user.role
-      }
+
+      // Set user session for WebAuthn registration
+      req.session.userId = user.id;
+      req.session.username = user.email;
+      req.session.role = user.role;
+
+      // Save session before responding to ensure persistence
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          console.error('Error saving session:', saveErr);
+          res.status(500).json({
+            success: false,
+            message: 'Error saving session'
+          });
+          return;
+        }
+
+        res.status(201).json({
+          success: true,
+          message: 'Registration completed successfully',
+          user: {
+            id: user.id,
+            email: user.email,
+            displayName: user.displayName,
+            role: user.role
+          }
+        });
+      });
     });
   });
   
@@ -438,32 +450,44 @@ class AuthController {
           // Continue login process even if this fails
         }
         
-        // Set user session
-        req.session.userId = user.id;
-        req.session.username = user.email; // Use email as username
-        req.session.role = user.role;
-        
-        // Save session explicitly to ensure it's stored before responding
-        req.session.save((err) => {
+        // Regenerate session to prevent session fixation
+        req.session.regenerate((err) => {
           if (err) {
-            console.error('Error saving session:', err);
+            console.error('Error regenerating session:', err);
             res.status(500).json({
               success: false,
-              message: 'Error saving session'
+              message: 'Error creating secure session'
             });
             return;
           }
-          
-          console.log('Session saved successfully');
-          res.json({
-            success: true,
-            message: 'Authentication successful',
-            user: {
-              id: user.id,
-              email: user.email,
-              displayName: user.displayName,
-              role: user.role
+
+          // Set user session data on the new session
+          req.session.userId = user.id;
+          req.session.username = user.email;
+          req.session.role = user.role;
+
+          // Save the new session
+          req.session.save((saveErr) => {
+            if (saveErr) {
+              console.error('Error saving session:', saveErr);
+              res.status(500).json({
+                success: false,
+                message: 'Error saving session'
+              });
+              return;
             }
+
+            console.log('Session saved successfully');
+            res.json({
+              success: true,
+              message: 'Authentication successful',
+              user: {
+                id: user.id,
+                email: user.email,
+                displayName: user.displayName,
+                role: user.role
+              }
+            });
           });
         });
       } else {
@@ -477,7 +501,9 @@ class AuthController {
       console.error('Authentication error:', error);
       res.status(500).json({
         success: false,
-        message: `Authentication error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: process.env.NODE_ENV === 'development'
+          ? `Authentication error: ${error instanceof Error ? error.message : 'Unknown error'}`
+          : 'Authentication error'
       });
     }
   });

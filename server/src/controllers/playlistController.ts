@@ -4,6 +4,7 @@ import { PlaylistData } from '../../../shared/src/playlistData';
 import { handleErrors } from "../helpers/errorHandler";
 import { validateAndConvert } from '../validators/validate';
 import { playlistSchema, playlistReorderSchema } from '../validators/playlistValidator';
+import { checkTenantAccess } from '../middleware/tenantAuthorizationMiddleware';
 
 class PlaylistController {
   /**
@@ -33,15 +34,29 @@ class PlaylistController {
       res.status(401).json({ success: false, message: 'Authentication required' });
       return;
     }
-    
+
     const { id } = req.params;
-    
+
     const result = await playlistService.getPlaylistById(id);
-    if (result.success) {
-      res.status(200).json(result);
-    } else {
+    if (!result.success) {
       res.status(404).json(result);
+      return;
     }
+
+    // Verify the requesting user is a member of the tenant that owns this playlist
+    const tenantId = result.playlist?.tenantId;
+    if (!tenantId) {
+      res.status(404).json({ success: false, message: `Failed to get playlist: Playlist with ID ${id} not found` });
+      return;
+    }
+
+    const { hasAccess } = await checkTenantAccess(req.user.id, tenantId);
+    if (!hasAccess) {
+      res.status(404).json({ success: false, message: `Failed to get playlist: Playlist with ID ${id} not found` });
+      return;
+    }
+
+    res.status(200).json(result);
   });
 
   /**

@@ -10,6 +10,7 @@ import {
     DeviceClaimRequest,
     DeviceCampaignAssignmentRequest
 } from '../../../shared/src/deviceData';
+import tenantRepository from '../repositories/tenantRepository';
 import { handleErrors } from "../helpers/errorHandler";
 import { validateAndConvert } from '../validators/validate';
 import { deviceDataSchema } from '../validators/deviceDataValidator';
@@ -17,6 +18,33 @@ import { deviceRegistrationRequestSchema } from '../validators/deviceRegistratio
 import { deviceClaimSchema, deviceCampaignAssignmentSchema } from '../validators/deviceRegistrationValidator';
 
 class DeviceController {
+    /**
+     * Get the set of tenant IDs accessible to the authenticated caller.
+     * For device auth: returns the device's tenant ID.
+     * For user auth: returns all tenant IDs the user is a member of.
+     */
+    private getAccessibleTenantIds = async (req: Request): Promise<Set<string>> => {
+        // The device object set by apiKeyAuthMiddleware includes tenantId,
+        // but the express type declaration only declares { id: string }.
+        const deviceTenantId = (req.device as { id: string; tenantId?: string } | undefined)?.tenantId;
+        if (deviceTenantId) {
+            return new Set([deviceTenantId]);
+        }
+
+        if (req.user) {
+            const memberships = await tenantRepository.getUserTenants(req.user.id);
+            const tenantIds: string[] = [];
+            for (const m of memberships) {
+                if (m.tenant) {
+                    tenantIds.push(m.tenant.id);
+                }
+            }
+            return new Set(tenantIds);
+        }
+
+        return new Set();
+    };
+
     /**
      * Register a new device and generate a device ID
      */
@@ -121,19 +149,26 @@ class DeviceController {
     });
 
     /**
-     * Get all devices with ping data
+     * Get all devices with ping data, scoped to the caller's accessible tenants
      */
     public getAllDevices = handleErrors(async (req: Request, res: Response): Promise<void> => {
+        const accessibleTenantIds = await this.getAccessibleTenantIds(req);
+
         // Check if we should only return claimed devices (default to true for security)
         const onlyClaimed = req.query.onlyClaimed !== 'false';
-        
+
         // Get raw devices directly from repository to access registrations
-        const devices = onlyClaimed 
-            ? await deviceRepository.getClaimedDevices() 
+        const devices = onlyClaimed
+            ? await deviceRepository.getClaimedDevices()
             : await deviceRepository.getDevices();
-        
+
+        // Filter to only devices belonging to the caller's accessible tenants
+        const scopedDevices = devices.filter(device =>
+            device.tenantId && accessibleTenantIds.has(device.tenantId)
+        );
+
         // Map devices with their registration data to include lastSeen and registrationTime
-        const devicesWithRegistrations = devices.map(device => {
+        const devicesWithRegistrations = scopedDevices.map(device => {
             const registration = device.registrations?.[0];
             return {
                 deviceData: deviceService.mapDeviceToShared(device),
@@ -141,34 +176,48 @@ class DeviceController {
                 registrationTime: registration?.registrationTime || new Date()
             };
         });
-        
+
         res.status(200).json(devicesWithRegistrations);
     });
 
     /**
-     * Get a specific device by ID
+     * Get a specific device by ID, with tenant access verification
      */
     public getDeviceById = handleErrors(async (req: Request, res: Response): Promise<void> => {
         const { id } = req.params;
         // Get raw device directly from repository to access registrations
         const device = await deviceRepository.getDeviceById(id);
-        
+
+        // Verify the caller has access to this device's tenant
+        const accessibleTenantIds = await this.getAccessibleTenantIds(req);
+        if (!device.tenantId || !accessibleTenantIds.has(device.tenantId)) {
+            res.status(404).json({ success: false, message: 'Device not found' });
+            return;
+        }
+
         // Include registration data
         const deviceWithRegistration = {
             deviceData: deviceService.mapDeviceToShared(device),
             lastSeen: device.registrations?.[0]?.lastSeen || new Date(),
             registrationTime: device.registrations?.[0]?.registrationTime || new Date()
         };
-        
+
         res.status(200).json(deviceWithRegistration);
     });
     
     /**
-     * Get all registered devices (with or without ping data)
+     * Get all registered devices (with or without ping data), scoped to accessible tenants
      */
     public getAllRegisteredDevices = handleErrors(async (req: Request, res: Response): Promise<void> => {
+        const accessibleTenantIds = await this.getAccessibleTenantIds(req);
         const devices = await deviceRegistrationService.getAllRegisteredDevices();
-        res.status(200).json(devices);
+
+        // Filter to only registrations belonging to the caller's accessible tenants
+        const scopedDevices = devices.filter(registration =>
+            registration.tenantId && accessibleTenantIds.has(registration.tenantId)
+        );
+
+        res.status(200).json(scopedDevices);
     });
     
     /**

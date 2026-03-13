@@ -2,26 +2,32 @@ import { User } from '../models/User';
 import { Authenticator } from '../models/Authenticator';
 import { generateUUID } from '../utils/helpers';
 import { UserRole, Authenticator as SharedAuthenticator } from '../../../shared/src/userData';
+import { Transaction } from 'sequelize';
 
 class UserRepository {
   /**
    * Create a new user
+   * @param transaction Optional Sequelize transaction for atomic operations
    */
-  async createUser(email: string, displayName?: string, role: UserRole = UserRole.USER): Promise<User> {
-    // Check if user exists
-    const existingUser = await this.getUserByEmail(email);
+  async createUser(email: string, displayName?: string, role: UserRole = UserRole.USER, transaction?: Transaction): Promise<User> {
+    // Check if user exists (within the same transaction if provided)
+    const existingUser = await User.findOne({
+      where: { email },
+      include: [Authenticator],
+      ...(transaction && { transaction }),
+    });
     if (existingUser) {
       throw new Error(`User with email ${email} already exists`);
     }
-    
-    // Create user
+
+    // Create user (within the same transaction if provided)
     const user = await User.create({
       id: generateUUID(),
       email,
       displayName,
       role
-    });
-    
+    }, transaction ? { transaction } : undefined);
+
     return user;
   }
 

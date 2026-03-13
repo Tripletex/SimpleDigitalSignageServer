@@ -4,6 +4,7 @@ import tenantRepository from '../repositories/tenantRepository';
 import { User } from '../models/User';
 import { Authenticator } from '../models/Authenticator';
 import { TenantMemberStatus } from '../../../shared/src/tenantData';
+import { Transaction } from 'sequelize';
 
 /**
  * Convert model user to shared user type
@@ -52,20 +53,21 @@ function mapAuthenticatorToSharedAuthenticator(auth: Authenticator): SharedAuthe
 class UserService {
   /**
    * Create a new user
+   * @param transaction Optional Sequelize transaction for atomic operations
    */
-  async createUser(email: string, displayName?: string, role: UserRole = UserRole.USER): Promise<SharedUser> {
+  async createUser(email: string, displayName?: string, role: UserRole = UserRole.USER, transaction?: Transaction): Promise<SharedUser> {
     // Check if user exists
     const existingUser = await userRepository.getUserByEmail(email);
     if (existingUser) {
       throw new Error(`Email ${email} already exists`);
     }
-    
-    // Create user
-    const user = await userRepository.createUser(email, displayName, role);
-    
+
+    // Create user (pass transaction for atomicity when provided)
+    const user = await userRepository.createUser(email, displayName, role, transaction);
+
     // Process any pending invitations for this email
     await this.processPendingInvitations(email, user.id);
-    
+
     return mapUserToSharedUser(user) as SharedUser;
   }
   

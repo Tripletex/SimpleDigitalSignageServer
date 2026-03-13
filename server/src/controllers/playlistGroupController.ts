@@ -4,6 +4,7 @@ import { PlaylistGroupData, PlaylistScheduleData } from '../../../shared/src/pla
 import { handleErrors } from "../helpers/errorHandler";
 import { validateAndConvert } from '../validators/validate';
 import { playlistGroupSchema, playlistScheduleSchema } from '../validators/playlistGroupValidator';
+import { checkTenantAccess } from '../middleware/tenantAuthorizationMiddleware';
 
 class PlaylistGroupController {
   /**
@@ -33,15 +34,29 @@ class PlaylistGroupController {
       res.status(401).json({ success: false, message: 'Authentication required' });
       return;
     }
-    
+
     const { id } = req.params;
-    
+
     const result = await playlistGroupService.getPlaylistGroupById(id);
-    if (result.success) {
-      res.status(200).json(result);
-    } else {
+    if (!result.success) {
       res.status(404).json(result);
+      return;
     }
+
+    // Verify the requesting user is a member of the tenant that owns this playlist group
+    const tenantId = result.playlistGroup?.tenantId;
+    if (!tenantId) {
+      res.status(404).json({ success: false, message: `Failed to get playlist group: Playlist group with ID ${id} not found` });
+      return;
+    }
+
+    const { hasAccess } = await checkTenantAccess(req.user.id, tenantId);
+    if (!hasAccess) {
+      res.status(404).json({ success: false, message: `Failed to get playlist group: Playlist group with ID ${id} not found` });
+      return;
+    }
+
+    res.status(200).json(result);
   });
 
   /**

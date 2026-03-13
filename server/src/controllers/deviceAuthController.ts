@@ -13,8 +13,8 @@ class DeviceAuthController {
    * @param res Response with verification result
    */
   async debugVerify(req: Request, res: Response) {
-    // SECURITY: Block access in production environment
-    if (process.env.NODE_ENV === 'production') {
+    // SECURITY: Only allow in development environment (allowlist pattern)
+    if (process.env.NODE_ENV !== 'development') {
       return res.status(404).json({
         success: false,
         message: 'Not found'
@@ -250,10 +250,11 @@ class DeviceAuthController {
       // Try to send a response (if not already sent)
       try {
         if (!res.headersSent) {
+          const isDev = process.env.NODE_ENV === 'development';
           return res.status(500).json({
             success: false,
             message: 'Error verifying authentication challenge',
-            error: error instanceof Error ? error.message : 'Unknown error'
+            ...(isDev && { error: error instanceof Error ? error.message : 'Unknown error' })
           });
         } else {
           console.error('[AUTH] Headers already sent, cannot send error response');

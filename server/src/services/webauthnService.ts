@@ -1,18 +1,15 @@
-import { 
+import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
   VerifyAuthenticationResponseOpts,
-  VerifyRegistrationResponseOpts
-} from '@simplewebauthn/server';
-
-import { 
-  AuthenticationResponseJSON, 
+  VerifyRegistrationResponseOpts,
+  AuthenticationResponseJSON,
   RegistrationResponseJSON,
   Base64URLString,
-  AuthenticatorTransportFuture
-} from '@simplewebauthn/types';
+  AuthenticatorTransportFuture,
+} from '@simplewebauthn/server';
 
 import { webAuthnConfig } from '../config/webauthn';
 import userRepository from '../repositories/userRepository';
