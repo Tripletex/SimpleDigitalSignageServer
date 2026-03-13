@@ -15,6 +15,6 @@
     "emitDecoratorMetadata": true                        /* Emit design-type metadata for decorated declarations in source files. */
   },
   "include": ["src/**/*", "src/types"],
-  "exclude": ["node_modules", "build"],
+  "exclude": ["node_modules", "build", "src/**/__tests__/**"],
   "files": ["src/types/express-session.d.ts"]
 }
