@@ -3,42 +3,52 @@ import { Device } from '../models/Device';
 import { generateUUID } from '../utils/helpers';
 import crypto from 'crypto';
 
+/** Compute a SHA-256 hex digest of a plaintext API key. */
+function hashApiKey(apiKey: string): string {
+  return crypto.createHash('sha256').update(apiKey).digest('hex');
+}
+
 class DeviceApiKeyRepository {
   /**
-   * Generate a new API key for a device
+   * Generate a new API key for a device.
+   * The plaintext key is returned once and never stored.
    */
   async generateApiKey(deviceId: string, tenantId?: string, expiresInDays?: number): Promise<{apiKey: string}> {
     // Calculate expiration date if provided
     let expiresAt = undefined;
-    if (expiresInDays) {
+    if (expiresInDays !== undefined && expiresInDays !== null) {
       expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + expiresInDays);
     }
-    
+
     // Generate a secure random API key
     const apiKey = crypto.randomBytes(32).toString('hex');
-    
-    // Create API key in database
+    const apiKeyHash = hashApiKey(apiKey);
+
+    // Store only the hash in the database
     await DeviceApiKey.create({
       id: generateUUID(),
       deviceId,
       tenantId,
-      apiKey,
+      apiKeyHash,
       expiresAt,
       active: true,
       lastUsed: new Date()
     });
-    
+
+    // Return the plaintext key (shown to user only once)
     return { apiKey };
   }
   
   /**
-   * Find an API key by its value
+   * Find an API key record by its plaintext value.
+   * Hashes the input and queries against the stored hash.
    */
   async findByApiKey(apiKey: string): Promise<DeviceApiKey | null> {
+    const apiKeyHash = hashApiKey(apiKey);
     return await DeviceApiKey.findOne({
-      where: { 
-        apiKey,
+      where: {
+        apiKeyHash,
         active: true
       },
       include: [

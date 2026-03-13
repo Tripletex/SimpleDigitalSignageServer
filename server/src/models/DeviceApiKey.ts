@@ -2,7 +2,6 @@ import { Table, Column, Model, DataType, ForeignKey, BelongsTo, PrimaryKey, Crea
 import { Device } from './Device';
 import { Tenant } from './Tenant';
 import { generateUUID } from '../utils/helpers';
-import crypto from 'crypto';
 
 @Table({
   tableName: 'device_api_keys',
@@ -31,9 +30,10 @@ export class DeviceApiKey extends Model {
   @Column({
     type: DataType.STRING,
     allowNull: false,
-    unique: true
+    unique: true,
+    field: 'api_key_hash'
   })
-  apiKey!: string;
+  apiKeyHash!: string;
 
   @Column({
     type: DataType.DATE,
@@ -73,10 +73,6 @@ export class DeviceApiKey extends Model {
   static generateId(instance: DeviceApiKey) {
     if (!instance.id) {
       instance.id = generateUUID();
-    }
-    if (!instance.apiKey) {
-      // Generate a secure random API key
-      instance.apiKey = crypto.randomBytes(32).toString('hex');
     }
   }
 

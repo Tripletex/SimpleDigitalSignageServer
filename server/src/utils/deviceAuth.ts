@@ -218,17 +218,19 @@ export const verifyDeviceSignature = (
           console.log(`[AUTH] ✅ Verification successful with method: ${method.name}`);
           
           // Save successful method for debugging
-          try {
-            const debugDir = path.join('/tmp', 'signage-debug');
-            if (!fs.existsSync(debugDir)) {
-              fs.mkdirSync(debugDir, { recursive: true });
+          if (process.env.NODE_ENV === 'development') {
+            try {
+              const debugDir = path.join('/tmp', 'signage-debug');
+              if (!fs.existsSync(debugDir)) {
+                fs.mkdirSync(debugDir, { recursive: true });
+              }
+              fs.writeFileSync(
+                path.join(debugDir, 'successful_method.txt'),
+                `Method: ${method.name}\nResult: ${result}`
+              );
+            } catch (e) {
+              // Ignore file write errors
             }
-            fs.writeFileSync(
-              path.join(debugDir, 'successful_method.txt'),
-              `Method: ${method.name}\nResult: ${result}`
-            );
-          } catch (e) {
-            // Ignore file write errors
           }
           
           return true;
@@ -242,17 +244,19 @@ export const verifyDeviceSignature = (
     }
     
     // Save detailed results for debugging
-    try {
-      const debugDir = path.join('/tmp', 'signage-debug');
-      if (!fs.existsSync(debugDir)) {
-        fs.mkdirSync(debugDir, { recursive: true });
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const debugDir = path.join('/tmp', 'signage-debug');
+        if (!fs.existsSync(debugDir)) {
+          fs.mkdirSync(debugDir, { recursive: true });
+        }
+        fs.writeFileSync(
+          path.join(debugDir, 'verification_results.json'),
+          JSON.stringify(methodResults, null, 2)
+        );
+      } catch (e) {
+        // Ignore file write errors
       }
-      fs.writeFileSync(
-        path.join(debugDir, 'verification_results.json'),
-        JSON.stringify(methodResults, null, 2)
-      );
-    } catch (e) {
-      // Ignore file write errors
     }
     
     console.error('[AUTH] ❌ All verification methods failed');

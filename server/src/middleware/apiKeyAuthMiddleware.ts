@@ -126,3 +126,58 @@ export const optionalApiKey = async (req: Request, res: Response, next: NextFunc
     next();
   }
 };
+
+/**
+ * Middleware that requires either a valid API key or an authenticated user session.
+ * API key is checked first. If absent or invalid, falls back to session auth.
+ * Rejects with 401 if neither is present.
+ */
+export const requireApiKeyOrAuth = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Step 1: Extract API key from request (header, query, body)
+    const apiKey =
+      req.headers['x-api-key'] as string ||
+      req.query.apiKey as string ||
+      (req.body && req.body.apiKey);
+
+    // Step 2: If API key is present, attempt validation
+    if (apiKey) {
+      const deviceId = await deviceApiKeyRepository.validateApiKey(apiKey);
+
+      if (deviceId) {
+        const device = await deviceRepository.getDeviceById(deviceId) as Device | null;
+
+        if (device) {
+          const deviceInfo: DeviceInfo = {
+            id: deviceId,
+            tenantId: device.tenantId,
+          };
+          req.device = deviceInfo;
+          return next();
+        }
+      }
+      // API key was provided but invalid — fall through to session check
+    }
+  } catch (error) {
+    // API key validation threw — log and fall through to session check
+    console.error('[API-KEY-AUTH] Error in API key validation, falling back to session:', error);
+  }
+
+  // Step 3: Check session authentication
+  const session = req.session as Record<string, any>;
+
+  if (session && session.userId) {
+    req.user = {
+      id: session.userId,
+      email: session.username as string,
+      role: session.role as string,
+    };
+    return next();
+  }
+
+  // Step 4: Neither auth method succeeded
+  return res.status(401).json({
+    success: false,
+    message: 'Authentication required: provide a valid API key or user session',
+  });
+};

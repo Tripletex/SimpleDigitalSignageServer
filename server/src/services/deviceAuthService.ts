@@ -101,7 +101,7 @@ class DeviceAuthService {
 
       return {
         success: false,
-        message: `Authentication error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: 'Authentication error'
       };
     }
   }
@@ -183,20 +183,22 @@ class DeviceAuthService {
       console.log(`[AUTH] Generated ${alternateFormats.length} alternate formats to try if primary fails`);
 
       // Dump to temp file for debug (outside nodemon watch path)
-      try {
-        const fs = require('fs');
-        const path = require('path');
-        const debugDir = path.join('/tmp', 'signage-debug');
-        if (!fs.existsSync(debugDir)) {
-          fs.mkdirSync(debugDir, { recursive: true });
-        }
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const fs = require('fs');
+          const path = require('path');
+          const debugDir = path.join('/tmp', 'signage-debug');
+          if (!fs.existsSync(debugDir)) {
+            fs.mkdirSync(debugDir, { recursive: true });
+          }
 
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const debugFile = path.join(debugDir, `challenge-${timestamp}.json`);
-        fs.writeFileSync(debugFile, dataString);
-        console.log(`[AUTH] Challenge data written to: ${debugFile}`);
-      } catch (e) {
-        console.warn('[AUTH] Could not write debug file:', e);
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const debugFile = path.join(debugDir, `challenge-${timestamp}.json`);
+          fs.writeFileSync(debugFile, dataString);
+          console.log(`[AUTH] Challenge data written to: ${debugFile}`);
+        } catch (e) {
+          console.warn('[AUTH] Could not write debug file:', e);
+        }
       }
       
       // Verify the signature with all possible formats
@@ -251,17 +253,17 @@ class DeviceAuthService {
       };
     } catch (error) {
       console.error(`[AUTH] Error in verifyAuthChallenge:`, error);
-      
+
       // Provide detailed error information
       if (error instanceof Error) {
         console.error(`[AUTH] Error name: ${error.name}`);
         console.error(`[AUTH] Error message: ${error.message}`);
         console.error(`[AUTH] Error stack: ${error.stack}`);
       }
-      
+
       return {
         success: false,
-        message: `Authentication error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: 'Authentication error'
       };
     }
   }
