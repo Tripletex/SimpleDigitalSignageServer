@@ -1,0 +1,28 @@
+{
+  "dev": {
+    "driver": "pg",
+    "user": "signage",
+    "password": "signage",
+    "host": "localhost",
+    "database": "signage",
+    "port": 5432,
+    "typescript": true
+  },
+  "test": {
+    "driver": "pg",
+    "user": "signage",
+    "password": "signage",
+    "host": "localhost",
+    "database": "signage_test",
+    "port": 5432,
+    "typescript": true
+  },
+  "production": {
+    "driver": "pg",
+    "user": {"ENV": "POSTGRES_USER"},
+    "password": {"ENV": "POSTGRES_PASSWORD"},
+    "host": {"ENV": "POSTGRES_HOST"},
+    "database": {"ENV": "POSTGRES_DB"},
+    "port": {"ENV": "POSTGRES_PORT"}
+  }
+}
