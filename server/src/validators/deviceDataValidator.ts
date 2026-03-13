@@ -1,16 +1,12 @@
-// validators/deviceDataValidator.ts
-import Joi from 'joi';
+import { z } from 'zod';
 
-export const networkSchema = Joi.object({
-    name: Joi.string().required(),
-    ipAddress: Joi.array().items(Joi.string()).required(),
+export const networkSchema = z.object({
+  name: z.string().min(1),
+  ipAddress: z.array(z.string()),
 });
 
-export const deviceDataSchema = Joi.object({
-    id: Joi.string().guid({ version: 'uuidv4' }).required(),
-    name: Joi.string().required(),
-    networks: Joi.array().items(networkSchema).optional(),
-    // The following fields are optional since we're using API keys for authentication
-    signature: Joi.string().optional(),
-    timestamp: Joi.number().optional(),
+export const deviceDataSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  networks: z.array(networkSchema).optional(),
 });

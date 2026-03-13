@@ -1,7 +1,6 @@
-// validators/userValidator.ts
-import Joi from 'joi';
+import { z } from 'zod';
 
-export const userRegisterSchema = Joi.object({
-  email: Joi.string().email().required(),
-  displayName: Joi.string().min(1).max(50).optional()
+export const userRegisterSchema = z.object({
+  email: z.string().email('Valid email is required'),
+  displayName: z.string().min(1).max(100).optional(),
 });

@@ -1,20 +1,17 @@
-import Joi from 'joi';
+import { z } from 'zod';
 
-// Validator for playlist schedule
-export const playlistScheduleSchema = Joi.object({
-  id: Joi.string().uuid().optional(),
-  playlistId: Joi.string().uuid().required(),
-  start: Joi.string().pattern(/^([01]\d|2[0-3]):([0-5]\d)$/).required(), // HH:MM format (24-hour)
-  end: Joi.string().pattern(/^([01]\d|2[0-3]):([0-5]\d)$/).required(), // HH:MM format (24-hour)
-  days: Joi.array().items(
-    Joi.string().valid('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
-  ).min(1).required()
+const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+const validDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+
+export const playlistScheduleSchema = z.object({
+  playlistId: z.string().uuid(),
+  start: z.string().regex(timeRegex, 'Start must be HH:MM format'),
+  end: z.string().regex(timeRegex, 'End must be HH:MM format'),
+  days: z.array(z.enum(validDays)).min(1, 'At least one day required'),
 });
 
-// Validator for playlist group
-export const playlistGroupSchema = Joi.object({
-  id: Joi.string().uuid().optional(),
-  name: Joi.string().min(1).max(100).required(),
-  description: Joi.string().max(500).allow('', null).optional(),
-  schedules: Joi.array().items(playlistScheduleSchema).optional()
+export const playlistGroupSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().max(1000).optional(),
+  schedules: z.array(playlistScheduleSchema).optional(),
 });

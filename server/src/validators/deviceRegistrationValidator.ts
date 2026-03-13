@@ -1,21 +1,17 @@
-// validators/deviceRegistrationValidator.ts
-import Joi from 'joi';
+import { z } from 'zod';
 
-export const deviceRegistrationRequestSchema = Joi.object({
-    deviceType: Joi.string().optional(),
-    hardwareId: Joi.string().optional(),
-    publicKey: Joi.string().required() // Require public key, but don't enforce specific length or format
-})
-
-export const deviceClaimSchema = Joi.object({
-    deviceId: Joi.string().required(),
-    displayName: Joi.string().optional()
+export const deviceRegistrationRequestSchema = z.object({
+  publicKey: z.string().min(1, 'Public key is required'),
+  deviceType: z.string().optional(),
+  hardwareId: z.string().optional(),
 });
 
-export const deviceCampaignAssignmentSchema = Joi.object({
-    deviceId: Joi.string().required(),
-    campaignId: Joi.alternatives().try(
-        Joi.string().required(),
-        Joi.valid(null)
-    ).required()
+export const deviceClaimSchema = z.object({
+  deviceId: z.string().uuid('Valid device ID required'),
+  displayName: z.string().max(100).optional(),
+});
+
+export const deviceCampaignAssignmentSchema = z.object({
+  deviceId: z.string().uuid('Valid device ID required'),
+  campaignId: z.string().uuid().nullable(),
 });
