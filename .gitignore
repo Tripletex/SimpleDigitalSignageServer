@@ -9,5 +9,10 @@ node_modules/
 .idea
 server/scripts/device-uuid.txt
 *.pem
+
+# Environment files (contain secrets)
+.env
+server/.env
+
 .claude-memory-private
 .claude/settings.local.json
