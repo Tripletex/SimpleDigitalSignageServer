@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import xss from 'xss';
 import validator from 'validator';
 import * as he from 'he';
@@ -207,10 +208,7 @@ export function sanitizeInput(req: Request, res: Response, next: NextFunction): 
     next();
   } catch (error) {
     console.error('[XSS-PROTECTION] Error during input sanitization:', error);
-    
-    // Continue processing but log the error
-    // Don't block the request as sanitization errors shouldn't break functionality
-    next();
+    res.status(400).json({ error: 'Invalid input' });
   }
 }
 
@@ -336,13 +334,28 @@ export function addSecurityHeaders(req: Request, res: Response, next: NextFuncti
 }
 
 /**
+ * Generate a cryptographic nonce for Content Security Policy.
+ * Each request gets a unique nonce to allow legitimate scripts
+ * while blocking injected inline scripts (XSS defense).
+ */
+export function generateCspNonce(): string {
+  return crypto.randomBytes(16).toString('base64');
+}
+
+/**
  * Content Security Policy configuration
+ *
+ * The nonce for scriptSrc is added per-request in server.ts via Helmet's
+ * function-based directive support. This base policy intentionally omits
+ * 'unsafe-inline' to enforce nonce-only script execution.
  */
 export const CSP_POLICY = {
   directives: {
     defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for React
-    styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for CSS modules
+    scriptSrc: ["'self'"], // Nonce added per-request in server.ts; 'unsafe-inline' removed for XSS defense
+    // 'unsafe-inline' required for styleSrc: CRA injects inline <style> tags for CSS modules at runtime.
+    // Nonce-based styles would require ejecting CRA or migrating to Vite, which is out of scope.
+    styleSrc: ["'self'", "'unsafe-inline'"],
     imgSrc: ["'self'", "data:", "https:"],
     fontSrc: ["'self'"],
     connectSrc: ["'self'"],

@@ -12,7 +12,8 @@ declare module 'express-session' {
     invitingTenantId?: string; // For invitation flow
     invitedRole?: string; // For invitation flow
     verificationToken?: string; // Store token for later cleanup
-    
+    csrfToken?: string; // CSRF synchronizer token (TASK-004)
+
     // Add user object for tenant security middleware
     user?: {
       id: string;

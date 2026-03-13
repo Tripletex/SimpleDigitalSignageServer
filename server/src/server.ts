@@ -1,5 +1,7 @@
 import express from 'express';
+import fs from 'fs';
 import path from 'path';
+import { IncomingMessage, ServerResponse } from 'http';
 import cors from 'cors';
 import session from 'express-session';
 import cookieParser from 'cookie-parser';
@@ -21,16 +23,30 @@ import { SESSION_SECRET, COOKIE_CONFIG } from './config/webauthn';
 import userService from './services/userService';
 import { excludeRoutes, isAuthenticated } from './middleware/authMiddleware';
 import { attachTenantSecurityContext } from './middleware/tenantSecurityMiddleware';
-import { sanitizeInput, encodeOutput, addSecurityHeaders, CSP_POLICY } from './middleware/xssProtectionMiddleware';
+import { sanitizeInput, encodeOutput, addSecurityHeaders, CSP_POLICY, generateCspNonce } from './middleware/xssProtectionMiddleware';
+import { csrfProtection } from './middleware/csrfMiddleware';
 
 const app = express();
 const port = process.env.PORT || 4000;
 
 // Security Middleware - Applied First
-// Helmet for security headers
+
+// Generate a unique CSP nonce for each request (must run before Helmet)
+app.use((req, res, next) => {
+  res.locals.cspNonce = generateCspNonce();
+  next();
+});
+
+// Helmet for security headers with per-request CSP nonce
 app.use(helmet({
   contentSecurityPolicy: {
-    directives: CSP_POLICY.directives,
+    directives: {
+      ...CSP_POLICY.directives,
+      scriptSrc: [
+        ...CSP_POLICY.directives.scriptSrc,
+        (_req: IncomingMessage, res: ServerResponse) => `'nonce-${(res as unknown as express.Response).locals.cspNonce}'`,
+      ],
+    },
   },
   crossOriginEmbedderPolicy: false, // Allow React dev tools
   crossOriginResourcePolicy: { policy: "cross-origin" } // Allow client-server communication
@@ -53,7 +69,14 @@ app.use((req, res, next) => {
   
   // Log request details
   console.log(`[REQUEST][${requestId}] ${new Date().toISOString()} - ${req.method} ${req.path}`);
-  console.log(`[REQUEST][${requestId}] Headers: ${JSON.stringify(req.headers)}`);
+  const redactedHeaders = { ...req.headers };
+  const sensitiveHeaders = ['cookie', 'authorization', 'x-api-key', 'set-cookie'];
+  for (const header of sensitiveHeaders) {
+    if (header in redactedHeaders) {
+      (redactedHeaders as Record<string, unknown>)[header] = '[REDACTED]';
+    }
+  }
+  console.log(`[REQUEST][${requestId}] Headers: ${JSON.stringify(redactedHeaders)}`);
   
   // Log query parameters if present
   if (Object.keys(req.query).length > 0) {
@@ -108,10 +131,11 @@ app.use((req, res, next) => {
 // We need to extend the Express Request type for our rawBody property
 // This is already done in express-session.d.ts
 
-// Increase JSON request size limit to handle WebAuthn data
-// Add the body parsers before our logging middleware so req.body is available for logging
-app.use(express.json({ 
-  limit: '50mb',
+// Body parser limits set to 1MB to prevent memory-exhaustion DoS attacks (CWE-400).
+// WebAuthn data and all current API payloads are well under 1MB.
+// If a future endpoint needs larger payloads, add a route-specific parser.
+app.use(express.json({
+  limit: '1mb',
   verify: (req: express.Request, res: express.Response, buf: Buffer) => {
     // Store the raw body buffer for potential later use
     // This can be helpful for crypto verification that needs the exact bytes
@@ -119,8 +143,8 @@ app.use(express.json({
   }
 }));
 
-app.use(express.urlencoded({ 
-  limit: '50mb', 
+app.use(express.urlencoded({
+  limit: '1mb',
   extended: true,
   verify: (req: express.Request, res: express.Response, buf: Buffer) => {
     (req as any).rawBody = buf;
@@ -140,9 +164,12 @@ app.use(encodeOutput);
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false,
   cookie: COOKIE_CONFIG as any
 }));
+
+// CSRF protection - must be after session middleware so req.session is available
+app.use(csrfProtection);
 
 // Add a simple health check endpoint for diagnostics
 app.get('/health', (req, res) => {
@@ -186,16 +213,37 @@ app.use('/api', playlistGroupRoutes);
 // - Setup routes
 app.use('/api', setupRoutes);
 
-// Serve static client files
+// Serve static client files (index: false prevents bypassing nonce injection)
 const clientPath = process.env.CLIENT_PATH || '../../client/build';
-app.use(express.static(path.join(__dirname, clientPath)));
+app.use(express.static(path.join(__dirname, clientPath), { index: false }));
 
 // Serve index.html for any unknown routes (SPA support)
+// Reads the HTML and injects the per-request CSP nonce on all <script> tags
 app.get('*', (req, res) => {
   if (req.url.startsWith('/api')) {
     return res.status(404).json({ message: 'API endpoint not found' });
   }
-  res.sendFile(path.join(__dirname, clientPath, 'index.html'));
+
+  const indexPath = path.join(__dirname, clientPath, 'index.html');
+  const nonce = res.locals.cspNonce;
+
+  fs.readFile(indexPath, 'utf8', (err, html) => {
+    if (err) {
+      console.error('Error reading index.html:', err);
+      return res.status(500).send('Internal Server Error');
+    }
+
+    // Inject nonce attribute into all script tags
+    const nonceHtml = html.replace(/<script/g, `<script nonce="${nonce}"`);
+
+    if (nonceHtml === html) {
+      console.warn('[CSP-NONCE] No <script> tags found in index.html — nonce injection had no effect');
+    }
+
+    // Nonce-bearing HTML must never be cached — a stale nonce would cause CSP violations
+    res.set('Cache-Control', 'no-store');
+    res.type('html').send(nonceHtml);
+  });
 });
 
 // Initialize database
