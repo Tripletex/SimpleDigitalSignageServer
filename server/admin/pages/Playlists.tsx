@@ -271,7 +271,6 @@ const Playlists: React.FC<PlaylistsProps> = ({
     // Validate URL format for URL-type items
     if (newItemType === 'URL' || newItemType === 'IMAGE' || newItemType === 'YOUTUBE') {
       try {
-        // Test if the URL is valid by creating a URL object
         new URL(newItemUrl);
       } catch (err) {
         setError(`Invalid URL format. Please enter a valid URL including http:// or https://`);
@@ -279,8 +278,22 @@ const Playlists: React.FC<PlaylistsProps> = ({
       }
     }
 
+    // Check if YouTube video is embeddable
+    if (newItemType === 'YOUTUBE') {
+      try {
+        const checkRes = await csrfFetch(`/api/youtube/check-embed?url=${encodeURIComponent(newItemUrl)}`);
+        const checkData = await checkRes.json();
+        if (!checkData.embeddable) {
+          setError('This YouTube video cannot be embedded. It may be restricted by the uploader.');
+          return;
+        }
+      } catch {
+        // If the check fails, allow adding anyway
+      }
+    }
+
     try {
-      const tenant = currentTenant || (localStorage.getItem('currentTenant') 
+      const tenant = currentTenant || (localStorage.getItem('currentTenant')
         ? JSON.parse(localStorage.getItem('currentTenant')!) 
         : null);
       
@@ -530,6 +543,20 @@ const Playlists: React.FC<PlaylistsProps> = ({
       } catch {
         setError('Invalid URL format. Please enter a valid URL including http:// or https://');
         return;
+      }
+    }
+
+    // Check if YouTube video is embeddable
+    if (newItemType === 'YOUTUBE') {
+      try {
+        const checkRes = await csrfFetch(`/api/youtube/check-embed?url=${encodeURIComponent(newItemUrl)}`);
+        const checkData = await checkRes.json();
+        if (!checkData.embeddable) {
+          setError('This YouTube video cannot be embedded. It may be restricted by the uploader.');
+          return;
+        }
+      } catch {
+        // If the check fails, allow saving anyway
       }
     }
 

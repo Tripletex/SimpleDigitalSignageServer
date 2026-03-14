@@ -13,5 +13,6 @@ app.get('/playlists/:id', isAuthenticated, handleErrors(playlistController.getPl
 app.put('/tenant/:tenantId/playlists/:id', isAuthenticated, requireTenantMember, handleErrors(playlistController.updatePlaylist));
 app.delete('/tenant/:tenantId/playlists/:id', isAuthenticated, requireTenantMember, handleErrors(playlistController.deletePlaylist));
 app.post('/tenant/:tenantId/playlists/:id/reorder', isAuthenticated, requireTenantMember, handleErrors(playlistController.reorderPlaylistItems));
+app.get('/youtube/check-embed', isAuthenticated, handleErrors(playlistController.checkYoutubeEmbeddable));
 
 export default app;

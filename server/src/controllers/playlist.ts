@@ -173,3 +173,27 @@ export async function reorderPlaylistItems(c: Context<AppEnv>): Promise<Response
     message: 'Playlist items reordered successfully',
   });
 }
+
+/**
+ * Check if a YouTube video is embeddable via the oEmbed API
+ */
+export async function checkYoutubeEmbeddable(c: Context<AppEnv>): Promise<Response> {
+  const url = c.req.query('url');
+  if (!url) {
+    return c.json({ embeddable: false, error: 'Missing url parameter' }, 400);
+  }
+
+  try {
+    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+    const res = await fetch(oembedUrl);
+
+    if (res.ok) {
+      const data = await res.json();
+      return c.json({ embeddable: true, title: data.title });
+    }
+
+    return c.json({ embeddable: false, error: 'Video cannot be embedded' });
+  } catch {
+    return c.json({ embeddable: false, error: 'Failed to check video' });
+  }
+}
