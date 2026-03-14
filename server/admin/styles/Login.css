@@ -49,7 +49,7 @@
   color: #8a8d93;
 }
 
-.form-group input {
+.login-container .form-group input {
   width: 100%;
   padding: 10px;
   font-size: 1rem;
@@ -60,13 +60,13 @@
   transition: border-color 0.3s, box-shadow 0.3s;
 }
 
-.form-group input:focus {
+.login-container .form-group input:focus {
   outline: none;
   border-color: #61dafb;
   box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.2);
 }
 
-.form-group input:disabled {
+.login-container .form-group input:disabled {
   background-color: #252a35;
   color: #8a8d93;
   cursor: not-allowed;
