@@ -63,7 +63,12 @@ const Playlists: React.FC<PlaylistsProps> = ({
   const [newItemLoopCount, setNewItemLoopCount] = useState<number>(1);
   const [newItemFit, setNewItemFit] = useState<string>('contain');
   const [newItemBgColor, setNewItemBgColor] = useState<string>('#000000');
-  
+
+  // Drag reorder state
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dragPlaylist, setDragPlaylist] = useState<string | null>(null);
+
   const navigate = useNavigate();
 
   // Use localStorage as a backup for tenant state
@@ -256,6 +261,80 @@ const Playlists: React.FC<PlaylistsProps> = ({
     setNewItemBgColor('#000000');
     setSelectedPlaylist(null);
     setEditingItem(null);
+  };
+
+  const handleDragStart = (playlistName: string, index: number) => {
+    setDragPlaylist(playlistName);
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (dragIndex === null) return;
+    // When dragging down, the visual indicator should be below the hovered row
+    // We adjust by checking if we're in the top or bottom half of the row
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const isBelow = e.clientY > midY;
+    setDragOverIndex(isBelow ? index + 1 : index);
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
+    setDragPlaylist(null);
+  };
+
+  const handleDrop = async (playlistName: string) => {
+    if (dragIndex === null || dragOverIndex === null || dragPlaylist !== playlistName) {
+      handleDragEnd();
+      return;
+    }
+
+    const playlist = playlistConfig?.playlists.find(p => p.name === playlistName);
+    if (!playlist || !playlist.id) {
+      handleDragEnd();
+      return;
+    }
+
+    // Calculate the actual target index after removal
+    let targetIndex = dragOverIndex;
+    if (targetIndex > dragIndex) targetIndex--;
+    if (targetIndex === dragIndex) {
+      handleDragEnd();
+      return;
+    }
+
+    // Reorder items locally
+    const items = [...playlist.items];
+    const [moved] = items.splice(dragIndex, 1);
+    items.splice(targetIndex, 0, moved);
+
+    // Update local state immediately
+    const updatedConfig = { ...playlistConfig! };
+    updatedConfig.playlists = updatedConfig.playlists.map(p =>
+      p.name === playlistName ? { ...p, items } : p
+    );
+    setPlaylistConfig(updatedConfig);
+    handleDragEnd();
+
+    // Send reorder to server
+    try {
+      const tenant = currentTenant || (localStorage.getItem('currentTenant')
+        ? JSON.parse(localStorage.getItem('currentTenant')!)
+        : null);
+      if (!tenant) return;
+
+      const itemIds = items.map(item => String(item.id));
+      await csrfFetch(`/api/tenant/${tenant.id}/playlists/${playlist.id}/reorder`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemIds }),
+      });
+    } catch (err) {
+      setError(`Failed to save item order: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   const handleAddItem = async () => {
@@ -774,6 +853,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
                           <table className="items-table">
                             <thead>
                               <tr>
+                                <th className="drag-col"></th>
                                 <th>Type</th>
                                 <th>Content</th>
                                 <th>Duration</th>
@@ -781,8 +861,27 @@ const Playlists: React.FC<PlaylistsProps> = ({
                               </tr>
                             </thead>
                             <tbody>
-                              {playlist.items.map((item) => (
-                                <tr key={`${playlist.name}-${item.id}`}>
+                              {playlist.items.map((item, index) => (
+                                <tr
+                                  key={`${playlist.name}-${item.id}`}
+                                  draggable
+                                  onDragStart={() => handleDragStart(playlist.name, index)}
+                                  onDragOver={(e) => handleDragOver(e, index)}
+                                  onDragEnd={handleDragEnd}
+                                  onDrop={() => handleDrop(playlist.name)}
+                                  className={
+                                    dragPlaylist === playlist.name && dragIndex !== null
+                                      ? [
+                                          dragIndex === index ? 'dragging' : '',
+                                          dragOverIndex === index ? 'drag-over-above' : '',
+                                          dragOverIndex === index + 1 && dragOverIndex === playlist.items.length ? 'drag-over-below' : '',
+                                        ].filter(Boolean).join(' ')
+                                      : ''
+                                  }
+                                >
+                                  <td className="drag-handle" title="Drag to reorder">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+                                  </td>
                                   <td>
                                     <span className="type-icon" title={item.type}>
                                       {getTypeIcon(item.type)}

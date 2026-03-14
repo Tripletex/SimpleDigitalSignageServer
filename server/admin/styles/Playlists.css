@@ -215,6 +215,38 @@
   border-bottom: none;
 }
 
+.items-table tr[draggable="true"] {
+  cursor: default;
+}
+
+.items-table tr.dragging {
+  opacity: 0.4;
+}
+
+.items-table tr.drag-over-above td {
+  border-top: 2px solid #3498db;
+}
+
+.items-table tr.drag-over-below td {
+  border-bottom: 2px solid #3498db;
+}
+
+.drag-col {
+  width: 30px;
+}
+
+.drag-handle {
+  width: 30px;
+  color: #bbb;
+  cursor: grab;
+  text-align: center;
+  user-select: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
 .type-icon {
   margin-right: 8px;
 }
@@ -488,8 +520,8 @@ select.form-input {
     margin-top: 10px;
   }
   
-  .items-table th:nth-child(3),
-  .items-table td:nth-child(3) {
+  .items-table th:nth-child(4),
+  .items-table td:nth-child(4) {
     display: none;
   }
 }
