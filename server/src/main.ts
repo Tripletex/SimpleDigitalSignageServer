@@ -11,7 +11,11 @@ import { secureHeaders } from 'hono/secure-headers';
 import type { AppEnv } from './types/context.ts';
 import { env } from './config/env.ts';
 import { testConnection, closeConnection } from './db/client.ts';
+import { runMigrations } from './config/runMigrations.ts';
 import userService from './services/user.ts';
+import { wsManager } from './services/websocket.ts';
+import deviceApiKeyRepository from './repositories/deviceApiKey.ts';
+import deviceRepository from './repositories/device.ts';
 
 // Middleware
 import {
@@ -80,7 +84,36 @@ app.use('*', cors({
 }));
 
 // ---------------------------------------------------------------------------
-// 5. Request logging
+// 5. WebSocket endpoint for device push notifications
+//    (before session/CSRF/sanitization middleware to avoid interference)
+// ---------------------------------------------------------------------------
+app.get('/api/device/ws', async (c) => {
+  const apiKey = c.req.query('apiKey');
+  if (!apiKey) {
+    return c.json({ message: 'API key required' }, 401);
+  }
+
+  const validation = await deviceApiKeyRepository.validateApiKey(apiKey);
+  if (!validation.valid || !validation.deviceId) {
+    return c.json({ message: 'Invalid API key' }, 401);
+  }
+
+  const device = await deviceRepository.getDeviceById(validation.deviceId);
+  if (!device) {
+    return c.json({ message: 'Device not found' }, 404);
+  }
+
+  const { socket, response } = Deno.upgradeWebSocket(c.req.raw);
+
+  socket.onopen = () => {
+    wsManager.addConnection(device.id, device.tenantId ?? null, device.campaignId ?? null, socket);
+  };
+
+  return response;
+});
+
+// ---------------------------------------------------------------------------
+// 6. Request logging
 // ---------------------------------------------------------------------------
 app.use('*', async (c, next) => {
   const start = Date.now();
@@ -216,6 +249,14 @@ async function initializeDatabase(): Promise<void> {
     Deno.exit(1);
   }
 
+  // Run pending migrations before starting the application
+  try {
+    await runMigrations('up');
+  } catch (error) {
+    console.error('Migration failed:', error);
+    Deno.exit(1);
+  }
+
   await userService.createInitialAdminIfNeeded();
 
   // Clean up expired data
@@ -234,11 +275,14 @@ async function initializeDatabase(): Promise<void> {
 
 await initializeDatabase();
 
+wsManager.start();
+
 console.log(`Server starting on port ${env.PORT}`);
 Deno.serve({ port: env.PORT }, app.fetch);
 
 // Graceful shutdown
 Deno.addSignalListener('SIGINT', () => {
   console.log('Caught interrupt signal');
+  wsManager.stop();
   closeConnection().then(() => Deno.exit(0));
 });

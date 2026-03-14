@@ -8,8 +8,6 @@ services:
       - POSTGRES_USER=signage
       - POSTGRES_PASSWORD=signage
       - POSTGRES_DB=signage
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
     networks:
       - signage-network
     restart: unless-stopped
