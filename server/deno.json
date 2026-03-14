@@ -1,14 +1,14 @@
 {
   "tasks": {
     "dev": "deno run --watch --allow-net --allow-read --allow-env --allow-run --env=.env src/main.ts",
+    "dev:admin": "npx vite",
     "start": "deno run --allow-net --allow-read --allow-env --allow-run --env=.env src/main.ts",
+    "build:admin": "npx vite build",
+    "prod": "npx vite build && deno run --allow-net --allow-read --allow-env --allow-run --env=.env src/main.ts",
     "test": "deno test --allow-net --allow-read --allow-env --allow-run",
     "db:migrate": "npx node-pg-migrate up -m migrations",
     "db:migrate:down": "npx node-pg-migrate down -m migrations",
-    "check": "deno check src/main.ts",
-    "poc:webauthn": "deno run --allow-net --allow-read --allow-env --env=.env src/poc/test-webauthn.ts",
-    "poc:drizzle": "deno run --allow-net --allow-read --allow-env --env=.env src/poc/test-drizzle.ts",
-    "poc:migrations": "deno run --allow-net --allow-read --allow-env --allow-run --env=.env src/poc/test-migrations.ts"
+    "check": "deno check src/main.ts"
   },
   "imports": {
     "hono": "npm:hono@^4",
@@ -36,6 +36,12 @@
     "strict": true,
     "lib": ["deno.window"]
   },
+  "exclude": [
+    "admin/",
+    "node_modules/",
+    "dist/",
+    "public/"
+  ],
   "nodeModulesDir": "auto",
   "npmRegistry": "https://registry.npmjs.org"
 }
