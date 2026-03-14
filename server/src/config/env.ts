@@ -11,7 +11,7 @@ export const env = {
   RP_ID: Deno.env.get('RP_ID') || 'localhost',
   ORIGIN: Deno.env.get('ORIGIN') || 'http://localhost:3000',
   SESSION_SECRET: Deno.env.get('SESSION_SECRET') || '',
-  CLIENT_PATH: Deno.env.get('CLIENT_PATH') || '../../client/build',
+  CLIENT_PATH: Deno.env.get('CLIENT_PATH') || '../dist',
   JWT_SECRET: Deno.env.get('JWT_SECRET') || '',
   get isDev() { return this.NODE_ENV === 'development'; },
   get isProd() { return this.NODE_ENV === 'production'; },

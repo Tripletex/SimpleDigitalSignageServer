@@ -214,8 +214,8 @@ export async function inviteUser(c: Context<AppEnv>): Promise<Response> {
     inviteData.role,
   );
 
-  const baseUrl = env.ORIGIN || 'http://localhost:3000';
-  const verificationLink = `${baseUrl}/verify-email/${token}`;
+  const requestOrigin = c.req.header('origin') || c.req.header('referer')?.replace(/\/[^/]*$/, '') || `http://localhost:${env.PORT}`;
+  const verificationLink = `${requestOrigin}/verify-email/${token}`;
 
   if (env.isProd) {
     console.log(`[PRODUCTION] Would send invitation email to ${inviteData.email} with link: ${verificationLink}`);

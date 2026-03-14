@@ -1,12 +1,36 @@
 import { env } from './env.ts';
 
+// Build list of allowed origins for WebAuthn verification.
+// Always includes the server's own origin (http(s)://rpID:port),
+// plus any explicitly configured ORIGIN (e.g. behind a load balancer).
+function getAllowedOrigins(): string[] {
+  const origins = new Set<string>();
+
+  // Server's own origin (covers "prod" mode where admin UI is served directly)
+  const scheme = env.isProd ? 'https' : 'http';
+  const serverOrigin = env.PORT === 443 || env.PORT === 80
+    ? `${scheme}://${env.RP_ID}`
+    : `${scheme}://${env.RP_ID}:${env.PORT}`;
+  origins.add(serverOrigin);
+
+  // Explicitly configured origin (e.g. LB URL, or Vite dev proxy on :3000)
+  if (env.ORIGIN) {
+    origins.add(env.ORIGIN);
+  }
+
+  // CORS origin may also be a valid WebAuthn origin (Vite dev proxy)
+  if (env.CORS_ORIGIN && env.CORS_ORIGIN !== serverOrigin) {
+    origins.add(env.CORS_ORIGIN);
+  }
+
+  return [...origins];
+}
+
 // Configure WebAuthn settings
 export const webAuthnConfig = {
   rpName: 'Digital Signage Server',
   rpID: env.RP_ID,
-  origin: env.ORIGIN,
-  // 31 days in milliseconds
-  timeout: 2592000000,
+  origin: getAllowedOrigins(),
 };
 
 /**

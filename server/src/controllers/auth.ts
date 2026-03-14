@@ -231,9 +231,9 @@ export async function selfRegister(c: Context<AppEnv>): Promise<Response> {
   // Create a verification token
   const token = await emailVerificationService.createEmailVerification(email, isFirstUser);
 
-  // Build the verification link
-  const baseUrl = env.ORIGIN || 'http://localhost:3000';
-  const verificationLink = `${baseUrl}/verify-email/${token}`;
+  // Build the verification link using the request's origin
+  const requestOrigin = c.req.header('origin') || c.req.header('referer')?.replace(/\/[^/]*$/, '') || `http://localhost:${env.PORT}`;
+  const verificationLink = `${requestOrigin}/verify-email/${token}`;
 
   if (env.isProd) {
     // TODO: Implement email sending in production

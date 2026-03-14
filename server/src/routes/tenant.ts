@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../types/context.ts';
 import { handleErrors } from '../helpers/errorHandler.ts';
 import * as tenantController from '../controllers/tenant.ts';
+import { isAuthenticated } from '../middleware/auth.ts';
 import {
   requireTenantMember,
   requireTenantAdmin,
@@ -9,6 +10,9 @@ import {
 } from '../middleware/tenantAuthorization.ts';
 
 const app = new Hono<AppEnv>();
+
+// All tenant routes require authentication
+app.use('*', isAuthenticated);
 
 app.get('/', handleErrors(tenantController.getUserTenants));
 app.post('/', handleErrors(tenantController.createTenant));
