@@ -111,6 +111,11 @@
 
 /* delete-organization-btn styles moved to common.css (btn btn-danger) */
 
+.organization-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .organization-section {
   margin-bottom: 30px;
 }

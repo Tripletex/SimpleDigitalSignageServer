@@ -50,7 +50,11 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
   const [inviteRole, setInviteRole] = useState('member');
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [showCreateOrgForm, setShowCreateOrgForm] = useState(false);
+  const [showRenameOrgModal, setShowRenameOrgModal] = useState(false);
+  const [showDeleteOrgModal, setShowDeleteOrgModal] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
+  const [renameOrgName, setRenameOrgName] = useState('');
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -119,8 +123,8 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
         
         setError(null);
       } catch (err) {
-        setError(`Error fetching tenants: ${err instanceof Error ? err.message : String(err)}`);
-        console.error('Error fetching tenants:', err);
+        setError(`Error fetching organizations: ${err instanceof Error ? err.message : String(err)}`);
+        console.error('Error fetching organizations:', err);
       } finally {
         setLoading(false);
       }
@@ -298,6 +302,40 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
     }
   };
 
+  const handleRenameOrganization = async () => {
+    if (!selectedOrg || !renameOrgName.trim()) return;
+
+    try {
+      await tenantService.updateTenant(selectedOrg.id, renameOrgName.trim());
+      setOrganizations(organizations.map(org =>
+        org.id === selectedOrg.id ? { ...org, name: renameOrgName.trim() } : org
+      ));
+      setShowRenameOrgModal(false);
+      setRenameOrgName('');
+      setSuccess(`Organization renamed to "${renameOrgName.trim()}"`);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(`Failed to rename organization: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const handleDeleteOrganization = async () => {
+    if (!selectedOrg || deleteConfirmName !== selectedOrg.name) return;
+
+    try {
+      await tenantService.deleteTenant(selectedOrg.id);
+      const updatedOrgs = organizations.filter(org => org.id !== selectedOrg.id);
+      setOrganizations(updatedOrgs);
+      setSelectedOrgId(updatedOrgs.length > 0 ? updatedOrgs[0].id : '');
+      setShowDeleteOrgModal(false);
+      setDeleteConfirmName('');
+      setSuccess('Organization deleted successfully');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(`Failed to delete organization: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   return (
     <Layout user={user} handleLogout={handleLogout}>
       <div className="organizations-container">
@@ -344,17 +382,28 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                   </div>
                   
                   {!selectedOrg.isPersonal && selectedOrg.role === 'owner' && (
-                    <button 
-                      className="btn btn-danger"
-                      onClick={() => {
-                        // In a real app, this would be an API call with confirmation
-                        const updatedOrgs = organizations.filter(org => org.id !== selectedOrgId);
-                        setOrganizations(updatedOrgs);
-                        setSelectedOrgId('personal');
-                      }}
-                    >
-                      Delete Organization
-                    </button>
+                    <div className="organization-header-actions">
+                      <button
+                        className="btn btn-info btn-sm"
+                        onClick={() => {
+                          setRenameOrgName(selectedOrg.name);
+                          setShowRenameOrgModal(true);
+                        }}
+                        title="Rename organization"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => {
+                          setDeleteConfirmName('');
+                          setShowDeleteOrgModal(true);
+                        }}
+                        title="Delete organization"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                      </button>
+                    </div>
                   )}
                 </div>
                 
@@ -538,6 +587,117 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                   disabled={!newOrgName.trim()}
                 >
                   Create
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Rename Organization Modal */}
+        {showRenameOrgModal && selectedOrg && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h2>Rename Organization</h2>
+                <button
+                  className="modal-close"
+                  onClick={() => {
+                    setShowRenameOrgModal(false);
+                    setRenameOrgName('');
+                    setError(null);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label htmlFor="rename-org">Organization Name</label>
+                  <input
+                    type="text"
+                    id="rename-org"
+                    className="form-input"
+                    value={renameOrgName}
+                    onChange={(e) => setRenameOrgName(e.target.value)}
+                  />
+                </div>
+                {error && <p className="error-message">{error}</p>}
+              </div>
+              <div className="modal-footer">
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setShowRenameOrgModal(false);
+                    setRenameOrgName('');
+                    setError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleRenameOrganization}
+                  disabled={!renameOrgName.trim() || renameOrgName.trim() === selectedOrg.name}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Organization Modal */}
+        {showDeleteOrgModal && selectedOrg && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h2>Delete Organization</h2>
+                <button
+                  className="modal-close"
+                  onClick={() => {
+                    setShowDeleteOrgModal(false);
+                    setDeleteConfirmName('');
+                    setError(null);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="modal-body">
+                <p style={{ marginBottom: '15px' }}>
+                  This will permanently delete <strong>{selectedOrg.name}</strong> and all its data including playlists, campaigns, devices, and schedules.
+                </p>
+                <div className="form-group">
+                  <label htmlFor="delete-confirm">
+                    Type <strong>{selectedOrg.name}</strong> to confirm
+                  </label>
+                  <input
+                    type="text"
+                    id="delete-confirm"
+                    className="form-input"
+                    placeholder={selectedOrg.name}
+                    value={deleteConfirmName}
+                    onChange={(e) => setDeleteConfirmName(e.target.value)}
+                  />
+                </div>
+                {error && <p className="error-message">{error}</p>}
+              </div>
+              <div className="modal-footer">
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setShowDeleteOrgModal(false);
+                    setDeleteConfirmName('');
+                    setError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={handleDeleteOrganization}
+                  disabled={deleteConfirmName !== selectedOrg.name}
+                >
+                  Delete Organization
                 </button>
               </div>
             </div>
