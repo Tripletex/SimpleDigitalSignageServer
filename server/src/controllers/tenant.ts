@@ -73,7 +73,17 @@ export async function getTenantDetails(c: Context<AppEnv>): Promise<Response> {
     return c.json({ success: false, message: 'Tenant not found' }, 404);
   }
 
-  const members = await tenantRepository.getTenantMembers(id);
+  const rawMembers = await tenantRepository.getTenantMembers(id);
+
+  // Flatten the nested user relation into a flat member object
+  const members = rawMembers.map((m) => ({
+    userId: m.userId,
+    email: m.user?.email ?? '',
+    displayName: m.user?.displayName ?? '',
+    role: m.role,
+    status: m.status,
+    joinedAt: m.joinedAt,
+  }));
 
   return c.json({
     success: true,
