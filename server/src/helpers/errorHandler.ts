@@ -11,6 +11,7 @@ export function handleErrors(
       return await controllerFunction(c);
     } catch (error) {
       if (error instanceof ZodError) {
+        console.error('Zod validation error:', JSON.stringify(error.errors));
         return c.json({ message: error.errors.map(e => e.message).join(', ') }, 400);
       } else if (error instanceof Error) {
         console.error('Unhandled error:', error.message, error.stack);

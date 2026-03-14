@@ -121,6 +121,7 @@ const INTERNAL_FIELD_RULES: Record<string, SanitizationOptions> = {
   notes: { maxLength: 2000, allowHtml: true },
   content: { maxLength: 10000, allowHtml: true },
   url: { maxLength: 2000, allowHtml: false, allowUrls: true },
+  location: { maxLength: 2000, allowHtml: false, allowUrls: true },
   imageUrl: { maxLength: 2000, allowHtml: false, allowUrls: true },
   deviceName: { maxLength: 100, allowHtml: false },
   playlistName: { maxLength: 200, allowHtml: false },

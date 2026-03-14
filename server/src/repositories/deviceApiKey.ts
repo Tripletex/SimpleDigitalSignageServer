@@ -20,6 +20,7 @@ const deviceApiKeyRepository = {
       deviceId,
       tenantId,
       apiKeyHash,
+      lastUsed: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
     }).returning();

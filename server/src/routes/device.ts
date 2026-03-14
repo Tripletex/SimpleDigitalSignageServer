@@ -11,6 +11,7 @@ const app = new Hono<AppEnv>();
 
 app.post('/register', rateLimit({ windowMs: 60 * 60 * 1000, max: 10 }), handleErrors(deviceController.registerDevice));
 app.post('/ping', requireApiKey, handleErrors(deviceController.pingDevice));
+app.get('/content', requireApiKey, handleErrors(deviceController.getDeviceContent));
 app.get('/list', requireApiKeyOrAuth, handleErrors(deviceController.getAllDevices));
 app.get('/registered', requireApiKeyOrAuth, handleErrors(deviceController.getAllRegisteredDevices));
 app.get('/tenant/:tenantId/devices', isAuthenticated, requireTenantMember, handleErrors(deviceController.getTenantDevices));

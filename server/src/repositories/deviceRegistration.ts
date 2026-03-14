@@ -25,6 +25,8 @@ const deviceRegistrationRepository = {
         deviceType: data.deviceType,
         hardwareId: data.hardwareId,
         publicKey: data.publicKey,
+        registrationTime: new Date(),
+        lastSeen: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
       }).returning();

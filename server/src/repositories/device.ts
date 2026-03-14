@@ -40,7 +40,7 @@ const deviceRepository = {
       await tx.delete(deviceNetworks)
         .where(eq(deviceNetworks.deviceId, device.id));
 
-      if (deviceData.networks.length > 0) {
+      if (deviceData.networks.length > 0 && device.tenantId) {
         await tx.insert(deviceNetworks).values(
           deviceData.networks.map((n) => ({
             id: uuidv7(),
@@ -153,15 +153,14 @@ const deviceRepository = {
         .set({ tenantId: null, updatedAt: new Date() })
         .where(eq(deviceRegistrations.deviceId, deviceId));
 
-      await tx.update(deviceNetworks)
-        .set({ tenantId: null as unknown as string, updatedAt: new Date() })
+      await tx.delete(deviceNetworks)
         .where(eq(deviceNetworks.deviceId, deviceId));
 
       return device;
     });
   },
 
-  async assignCampaign(deviceId: string, campaignId: string) {
+  async assignCampaign(deviceId: string, campaignId: string | null) {
     const result = await db.update(devices)
       .set({ campaignId, updatedAt: new Date() })
       .where(eq(devices.id, deviceId))
