@@ -10,6 +10,10 @@ export function startLocalServer(port: number): void {
   }}, (req) => {
     const url = new URL(req.url);
 
+    if (url.pathname === '/embed/image') {
+      return handleImageEmbed(url);
+    }
+
     if (url.pathname === '/embed/youtube') {
       return handleYoutubeEmbed(url);
     }
@@ -148,6 +152,39 @@ function handleYoutubeEmbed(url: URL): Response {
   };
 </script>
 </body></html>`;
+
+  return new Response(html, {
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+}
+
+function handleImageEmbed(url: URL): Response {
+  const src = url.searchParams.get('src') || '';
+  const fit = url.searchParams.get('fit') || 'contain';
+  const bgColor = url.searchParams.get('bg') || '#000000';
+
+  if (!src) {
+    return new Response('Missing src parameter', { status: 400 });
+  }
+
+  // Map fit values to CSS object-fit + sizing
+  let imgStyle = '';
+  if (fit === 'cover') {
+    imgStyle = 'width:100vw;height:100vh;object-fit:cover;';
+  } else if (fit === 'fill') {
+    imgStyle = 'width:100vw;height:100vh;object-fit:fill;';
+  } else {
+    imgStyle = 'max-width:100vw;max-height:100vh;object-fit:contain;';
+  }
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Signage</title>
+<style>
+  *{margin:0;padding:0}
+  body{background:${bgColor};display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden}
+  img{${imgStyle}}
+</style></head>
+<body><img src="${src.replace(/"/g, '&quot;')}" /></body></html>`;
 
   return new Response(html, {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },

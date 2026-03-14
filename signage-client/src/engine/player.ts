@@ -156,7 +156,7 @@ export class Player {
     } else if (itemType === 'image' && item.data?.location) {
       console.log(`[PLAYER] Show image: ${item.data.location} (${item.duration}s)`);
       this.display.on();
-      await this.showImage(item.data.location);
+      await this.showImage(item.data.location, item.data.fit, item.data.bgColor);
     } else if (itemType === 'youtube' && item.data?.location) {
       const dur = item.duration > 0 ? `${item.duration}s` : 'video length';
       console.log(`[PLAYER] Show YouTube: ${item.data.location} (${dur})`);
@@ -226,18 +226,16 @@ export class Player {
     }
   }
 
-  private async showImage(imageUrl: string): Promise<void> {
-    const html = `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Signage</title>
-<style>
-  * { margin: 0; padding: 0; }
-  body { background: #000; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
-  img { max-width: 100vw; max-height: 100vh; object-fit: contain; }
-</style></head>
-<body><img src="${imageUrl.replace(/"/g, '&quot;')}" /></body></html>`)}`;
+  private async showImage(imageUrl: string, fit?: string, bgColor?: string): Promise<void> {
+    const params = new URLSearchParams();
+    params.set('src', imageUrl);
+    if (fit) params.set('fit', fit);
+    if (bgColor) params.set('bg', bgColor);
+
+    const embedUrl = `http://127.0.0.1:${this.localPort}/embed/image?${params}`;
 
     try {
-      await this.cdp.navigate(html);
+      await this.cdp.navigate(embedUrl);
       this.currentUrl = imageUrl;
     } catch (error) {
       console.error('[PLAYER] Image navigation failed:', error instanceof Error ? error.message : error);

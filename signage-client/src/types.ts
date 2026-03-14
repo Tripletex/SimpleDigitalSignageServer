@@ -6,6 +6,8 @@ export interface PlaylistItem {
     muted?: boolean;
     loop?: boolean;
     loopCount?: number;
+    fit?: string;     // 'contain' | 'cover' | 'fill'
+    bgColor?: string; // CSS color for background
   };
   duration: number; // seconds (0 = video determines duration)
   position: number;

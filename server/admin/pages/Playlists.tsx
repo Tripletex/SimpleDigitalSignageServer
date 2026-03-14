@@ -13,6 +13,8 @@ interface PlaylistItem {
     muted?: boolean;
     loop?: boolean;
     loopCount?: number;
+    fit?: string;       // 'contain' | 'cover' | 'fill'
+    bgColor?: string;   // CSS color for background
   };
   duration: number;
 }
@@ -59,6 +61,8 @@ const Playlists: React.FC<PlaylistsProps> = ({
   const [newItemMuted, setNewItemMuted] = useState<boolean>(false);
   const [newItemLoop, setNewItemLoop] = useState<boolean>(false);
   const [newItemLoopCount, setNewItemLoopCount] = useState<number>(1);
+  const [newItemFit, setNewItemFit] = useState<string>('contain');
+  const [newItemBgColor, setNewItemBgColor] = useState<string>('#000000');
   
   const navigate = useNavigate();
 
@@ -248,6 +252,8 @@ const Playlists: React.FC<PlaylistsProps> = ({
     setNewItemMuted(false);
     setNewItemLoop(false);
     setNewItemLoopCount(1);
+    setNewItemFit('contain');
+    setNewItemBgColor('#000000');
     setSelectedPlaylist(null);
     setEditingItem(null);
   };
@@ -327,7 +333,16 @@ const Playlists: React.FC<PlaylistsProps> = ({
           data: dataObj,
           duration: 0,
         };
-      } else if (newItemType === 'URL' || newItemType === 'IMAGE') {
+      } else if (newItemType === 'IMAGE') {
+        const dataObj: any = { location: newItemUrl };
+        if (newItemFit !== 'contain') dataObj.fit = newItemFit;
+        if (newItemBgColor !== '#000000') dataObj.bgColor = newItemBgColor;
+        newItem = {
+          type: newItemType,
+          data: dataObj,
+          duration: newItemDuration,
+        };
+      } else if (newItemType === 'URL') {
         newItem = {
           type: newItemType,
           data: { location: newItemUrl },
@@ -521,6 +536,8 @@ const Playlists: React.FC<PlaylistsProps> = ({
     setNewItemMuted(item.data?.muted || false);
     setNewItemLoop(item.data?.loop || false);
     setNewItemLoopCount(item.data?.loopCount || 1);
+    setNewItemFit(item.data?.fit || 'contain');
+    setNewItemBgColor(item.data?.bgColor || '#000000');
     setShowItemModal(true);
   };
 
@@ -591,7 +608,12 @@ const Playlists: React.FC<PlaylistsProps> = ({
             dataObj.loopCount = newItemLoopCount;
           }
           updated.data = dataObj;
-        } else if (newItemType === 'URL' || newItemType === 'IMAGE') {
+        } else if (newItemType === 'IMAGE') {
+          const dataObj: any = { location: newItemUrl };
+          if (newItemFit !== 'contain') dataObj.fit = newItemFit;
+          if (newItemBgColor !== '#000000') dataObj.bgColor = newItemBgColor;
+          updated.data = dataObj;
+        } else if (newItemType === 'URL') {
           updated.data = { location: newItemUrl };
         } else {
           delete updated.data;
@@ -966,6 +988,34 @@ const Playlists: React.FC<PlaylistsProps> = ({
                       Enter a complete URL including http:// or https://
                     </small>
                   </div>
+                )}
+
+                {newItemType === 'IMAGE' && (
+                  <>
+                    <div className="form-group">
+                      <label htmlFor="item-fit">Display Mode</label>
+                      <select
+                        id="item-fit"
+                        className="form-input"
+                        value={newItemFit}
+                        onChange={(e) => setNewItemFit(e.target.value)}
+                      >
+                        <option value="contain">Contain (fit within screen)</option>
+                        <option value="cover">Cover (fill screen, may crop)</option>
+                        <option value="fill">Fill (stretch to fit)</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="item-bg-color">Background Color</label>
+                      <input
+                        type="color"
+                        id="item-bg-color"
+                        className="form-input color-input"
+                        value={newItemBgColor}
+                        onChange={(e) => setNewItemBgColor(e.target.value)}
+                      />
+                    </div>
+                  </>
                 )}
 
                 {newItemType === 'YOUTUBE' && (

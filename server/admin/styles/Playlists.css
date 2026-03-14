@@ -424,6 +424,12 @@ select.form-input {
   resize: vertical;
 }
 
+.color-input {
+  height: 40px;
+  padding: 4px;
+  cursor: pointer;
+}
+
 .modal-footer {
   padding: 15px 20px;
   border-top: 1px solid #eee;
