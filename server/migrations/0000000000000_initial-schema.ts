@@ -28,9 +28,9 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     email: { type: 'varchar(255)', notNull: true, unique: true },
     display_name: { type: 'varchar(255)' },
     role: { type: 'varchar(20)', notNull: true, default: 'USER' },
-    last_login: { type: 'timestamp', default: null },
-    created_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    last_login: { type: 'timestamptz', default: null },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
 
   pgm.createTable('authenticators', {
@@ -43,8 +43,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     transports: { type: 'varchar(255)' },
     fmt: { type: 'varchar(255)' },
     name: { type: 'varchar(255)' },
-    created_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
   pgm.createIndex('authenticators', 'user_id');
 
@@ -55,9 +55,9 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     is_first_user: { type: 'boolean', notNull: true, default: false },
     inviting_tenant_id: { type: 'varchar(255)' },
     invited_role: { type: 'varchar(255)' },
-    expires_at: { type: 'timestamp', notNull: true },
-    created_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    expires_at: { type: 'timestamptz', notNull: true },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
 
   // -----------------------------------------------------------------------
@@ -68,8 +68,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     name: { type: 'varchar(255)', notNull: true },
     is_personal: { type: 'boolean', notNull: true, default: false },
     owner_id: { type: 'uuid', notNull: true, references: 'users', onDelete: 'CASCADE' },
-    created_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
 
   pgm.createTable('tenant_members', {
@@ -79,8 +79,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     role: { type: 'enum_tenant_members_role', notNull: true },
     status: { type: 'enum_tenant_members_status', notNull: true, default: 'pending' },
     invited_by_id: { type: 'uuid', references: 'users', onDelete: 'SET NULL' },
-    joined_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    joined_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
   pgm.createIndex('tenant_members', ['tenant_id', 'user_id'], { unique: true });
   pgm.createIndex('tenant_members', 'user_id');
@@ -91,9 +91,9 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     email: { type: 'varchar(255)', notNull: true },
     role: { type: 'enum_pending_invitations_role', notNull: true },
     invited_by_id: { type: 'uuid', references: 'users', onDelete: 'SET NULL' },
-    expires_at: { type: 'timestamp', notNull: true },
-    created_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    expires_at: { type: 'timestamptz', notNull: true },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
   pgm.createIndex('pending_invitations', ['tenant_id', 'email'], { unique: true });
 
@@ -106,8 +106,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     description: { type: 'text' },
     tenant_id: { type: 'uuid', notNull: true, references: 'tenants', onDelete: 'CASCADE' },
     created_by_id: { type: 'uuid', notNull: true, references: 'users', onDelete: 'CASCADE' },
-    created_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
   pgm.createIndex('playlist_groups', 'tenant_id');
   pgm.createIndex('playlist_groups', 'created_by_id');
@@ -118,8 +118,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     description: { type: 'text' },
     tenant_id: { type: 'uuid', notNull: true, references: 'tenants', onDelete: 'CASCADE' },
     created_by_id: { type: 'uuid', notNull: true, references: 'users', onDelete: 'CASCADE' },
-    created_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
   pgm.createIndex('playlists', 'tenant_id');
   pgm.createIndex('playlists', 'created_by_id');
@@ -132,8 +132,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     data: { type: 'jsonb' },
     duration: { type: 'integer', notNull: true },
     tenant_id: { type: 'uuid', notNull: true, references: 'tenants', onDelete: 'CASCADE' },
-    created_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
   pgm.createIndex('playlist_items', 'playlist_id');
   pgm.createIndex('playlist_items', 'tenant_id');
@@ -146,8 +146,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     end: { type: 'varchar(5)', notNull: true },
     days: { type: 'text[]', notNull: true },
     tenant_id: { type: 'uuid', notNull: true, references: 'tenants', onDelete: 'CASCADE' },
-    created_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
   pgm.createIndex('playlist_schedules', 'playlist_group_id');
   pgm.createIndex('playlist_schedules', 'playlist_id');
@@ -161,14 +161,14 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     name: { type: 'varchar(255)', notNull: true },
     tenant_id: { type: 'uuid', references: 'tenants', onDelete: 'SET NULL' },
     claimed_by_id: { type: 'uuid', references: 'users', onDelete: 'SET NULL' },
-    claimed_at: { type: 'timestamp' },
+    claimed_at: { type: 'timestamptz' },
     display_name: { type: 'varchar(255)' },
     campaign_id: { type: 'uuid', references: 'playlist_groups', onDelete: 'SET NULL' },
     health_status: { type: 'device_health_status', notNull: true, default: 'UNKNOWN' },
-    last_health_check: { type: 'timestamp', default: null },
+    last_health_check: { type: 'timestamptz', default: null },
     health_details: { type: 'jsonb', default: '{}' },
-    created_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
   pgm.createIndex('devices', 'tenant_id');
   pgm.createIndex('devices', 'claimed_by_id');
@@ -180,8 +180,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     name: { type: 'varchar(255)', notNull: true },
     ip_addresses: { type: 'text[]', notNull: true, default: '{}' },
     tenant_id: { type: 'uuid', notNull: true, references: 'tenants', onDelete: 'CASCADE' },
-    created_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
   pgm.createIndex('device_networks', 'device_id');
   pgm.createIndex('device_networks', 'tenant_id');
@@ -192,12 +192,12 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     device_type: { type: 'varchar(255)' },
     hardware_id: { type: 'varchar(255)' },
     public_key: { type: 'text', notNull: true },
-    registration_time: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    last_seen: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    registration_time: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    last_seen: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
     active: { type: 'boolean', notNull: true, default: true },
     tenant_id: { type: 'uuid', references: 'tenants', onDelete: 'CASCADE' },
-    created_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
   pgm.createIndex('device_registrations', 'device_id');
   pgm.createIndex('device_registrations', 'tenant_id');
@@ -206,11 +206,11 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     id: { type: 'uuid', primaryKey: true },
     device_id: { type: 'uuid', notNull: true, references: 'devices', onDelete: 'CASCADE' },
     challenge: { type: 'text', notNull: true },
-    expires: { type: 'timestamp', notNull: true },
+    expires: { type: 'timestamptz', notNull: true },
     used: { type: 'boolean', notNull: true, default: false },
     tenant_id: { type: 'uuid', references: 'tenants', onDelete: 'CASCADE' },
-    created_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
   pgm.createIndex('device_auth_challenges', 'device_id');
   pgm.createIndex('device_auth_challenges', 'tenant_id');
@@ -220,11 +220,11 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     device_id: { type: 'uuid', notNull: true, references: 'devices(id)' },
     tenant_id: { type: 'uuid', notNull: false, references: 'tenants(id)' },
     api_key_hash: { type: 'text', notNull: true },
-    expires_at: { type: 'timestamp', notNull: false },
+    expires_at: { type: 'timestamptz', notNull: false },
     active: { type: 'boolean', notNull: true, default: true },
-    last_used: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    created_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
-    updated_at: { type: 'timestamp', notNull: true, default: pgm.func('current_timestamp') },
+    last_used: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });
   pgm.createIndex('device_api_keys', 'device_id');
   pgm.createIndex('device_api_keys', 'tenant_id');
