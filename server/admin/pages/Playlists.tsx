@@ -64,6 +64,11 @@ const Playlists: React.FC<PlaylistsProps> = ({
   const [newItemFit, setNewItemFit] = useState<string>('contain');
   const [newItemBgColor, setNewItemBgColor] = useState<string>('#000000');
 
+  // Rename playlist state
+  const [showRenameModal, setShowRenameModal] = useState<boolean>(false);
+  const [renamePlaylistId, setRenamePlaylistId] = useState<string | null>(null);
+  const [renamePlaylistName, setRenamePlaylistName] = useState<string>('');
+
   // Drag reorder state
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -480,6 +485,50 @@ const Playlists: React.FC<PlaylistsProps> = ({
     }
   };
 
+  const handleRenamePlaylist = async () => {
+    if (!playlistConfig || !renamePlaylistId || !renamePlaylistName.trim()) return;
+
+    try {
+      const tenant = currentTenant || (localStorage.getItem('currentTenant')
+        ? JSON.parse(localStorage.getItem('currentTenant')!)
+        : null);
+
+      if (!tenant) {
+        setError('No tenant selected');
+        return;
+      }
+
+      const response = await csrfFetch(`/api/tenant/${tenant.id}/playlists/${renamePlaylistId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: renamePlaylistName.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        const updatedPlaylists = playlistConfig.playlists.map(p =>
+          p.id === renamePlaylistId ? { ...p, name: renamePlaylistName.trim() } : p
+        );
+        setPlaylistConfig({ playlists: updatedPlaylists });
+        setShowRenameModal(false);
+        setRenamePlaylistId(null);
+        setRenamePlaylistName('');
+        setError(null);
+      } else {
+        throw new Error(data.message || 'Failed to rename playlist');
+      }
+    } catch (err) {
+      setError(`Error renaming playlist: ${err instanceof Error ? err.message : String(err)}`);
+      console.error('Error renaming playlist:', err);
+    }
+  };
+
   const handleDeletePlaylist = async (playlistName: string) => {
     if (!playlistConfig) return;
 
@@ -772,7 +821,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
           <h1>Playlist Management</h1>
           <div className="playlists-actions">
             <button 
-              className="create-playlist-btn"
+              className="btn btn-primary"
               onClick={() => setShowCreateModal(true)}
               disabled={!currentTenant && !localStorage.getItem('currentTenant')}
             >
@@ -794,8 +843,8 @@ const Playlists: React.FC<PlaylistsProps> = ({
           <div className="empty-state">
             <p>No playlist configuration found for the selected tenant. Create a playlist to get started.</p>
             <div className="empty-state-actions">
-              <button 
-                className="create-playlist-btn"
+              <button
+                className="btn btn-primary"
                 onClick={() => setShowCreateModal(true)}
               >
                 Create Playlist
@@ -809,12 +858,6 @@ const Playlists: React.FC<PlaylistsProps> = ({
             <div className="section">
               <div className="section-header">
                 <h2>Playlists</h2>
-                <button 
-                  className="add-button"
-                  onClick={() => setShowCreateModal(true)}
-                >
-                  + Add Playlist
-                </button>
               </div>
               
               {playlistConfig.playlists.length === 0 ? (
@@ -826,18 +869,29 @@ const Playlists: React.FC<PlaylistsProps> = ({
                       <div className="playlist-card-header">
                         <h3>{playlist.name}</h3>
                         <div className="playlist-actions">
-                          <button 
-                            className="action-button"
+                          <button
+                            className="btn btn-outline-primary btn-sm"
                             onClick={() => {
                               setSelectedPlaylist(playlist.name);
                               setShowItemModal(true);
                             }}
                             title="Add item"
                           >
-                            +
+                            + Add
                           </button>
-                          <button 
-                            className="action-button delete"
+                          <button
+                            className="btn btn-info btn-sm"
+                            onClick={() => {
+                              setRenamePlaylistId(playlist.id || null);
+                              setRenamePlaylistName(playlist.name);
+                              setShowRenameModal(true);
+                            }}
+                            title="Rename playlist"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
                             onClick={() => handleDeletePlaylist(playlist.name)}
                             title="Delete playlist"
                           >
@@ -933,14 +987,14 @@ const Playlists: React.FC<PlaylistsProps> = ({
                                   <td>
                                     <div className="playlist-actions">
                                       <button
-                                        className="action-button"
+                                        className="btn btn-info btn-sm"
                                         onClick={() => handleEditItem(playlist.name, item)}
                                         title="Edit item"
                                       >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                       </button>
                                       <button
-                                        className="action-button delete"
+                                        className="btn btn-danger btn-sm"
                                         onClick={() => handleDeleteItem(playlist.name, item.id)}
                                         title="Delete item"
                                       >
@@ -955,17 +1009,6 @@ const Playlists: React.FC<PlaylistsProps> = ({
                         )}
                       </div>
                       
-                      <div className="playlist-card-footer">
-                        <button 
-                          className="add-item-btn"
-                          onClick={() => {
-                            setSelectedPlaylist(playlist.name);
-                            setShowItemModal(true);
-                          }}
-                        >
-                          + Add Item
-                        </button>
-                      </div>
                     </div>
                   ))}
                 </div>
@@ -1010,7 +1053,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
               </div>
               <div className="modal-footer">
                 <button 
-                  className="cancel-button"
+                  className="btn btn-ghost"
                   onClick={() => {
                     setShowCreateModal(false);
                     setNewPlaylistName('');
@@ -1020,7 +1063,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
                   Cancel
                 </button>
                 <button 
-                  className="create-button"
+                  className="btn btn-primary"
                   onClick={handleCreatePlaylist}
                 >
                   Create Playlist
@@ -1175,7 +1218,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
               </div>
               <div className="modal-footer">
                 <button
-                  className="cancel-button"
+                  className="btn btn-ghost"
                   onClick={() => {
                     setShowItemModal(false);
                     resetItemForm();
@@ -1185,10 +1228,67 @@ const Playlists: React.FC<PlaylistsProps> = ({
                   Cancel
                 </button>
                 <button
-                  className="create-button"
+                  className="btn btn-primary"
                   onClick={editingItem ? handleSaveEditItem : handleAddItem}
                 >
                   {editingItem ? 'Save Changes' : 'Add Item'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Rename Playlist Modal */}
+        {showRenameModal && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h2>Rename Playlist</h2>
+                <button
+                  className="modal-close"
+                  onClick={() => {
+                    setShowRenameModal(false);
+                    setRenamePlaylistId(null);
+                    setRenamePlaylistName('');
+                    setError(null);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label htmlFor="rename-playlist">Playlist Name*</label>
+                  <input
+                    type="text"
+                    id="rename-playlist"
+                    className="form-input"
+                    value={renamePlaylistName}
+                    onChange={(e) => setRenamePlaylistName(e.target.value)}
+                  />
+                </div>
+
+                {error && (
+                  <p className="error-message">{error}</p>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setShowRenameModal(false);
+                    setRenamePlaylistId(null);
+                    setRenamePlaylistName('');
+                    setError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleRenamePlaylist}
+                  disabled={!renamePlaylistName.trim()}
+                >
+                  Save
                 </button>
               </div>
             </div>
