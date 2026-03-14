@@ -230,7 +230,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
         : null);
       
       if (!tenant) {
-        setError('No tenant selected');
+        setError('No organization selected');
         return;
       }
       
@@ -367,7 +367,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
         : null);
       
       if (!tenant) {
-        setError('No tenant selected');
+        setError('No organization selected');
         return;
       }
       
@@ -472,7 +472,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
           : null);
         
         if (!tenant) {
-          setError('No tenant selected');
+          setError('No organization selected');
           return;
         }
         
@@ -520,7 +520,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
           : null);
         
         if (!tenant) {
-          setError('No tenant selected');
+          setError('No organization selected');
           return;
         }
         
@@ -608,7 +608,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
         : null);
       
       if (!tenant) {
-        setError('No tenant selected');
+        setError('No organization selected');
         setLoading(false);
         return;
       }
@@ -677,7 +677,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
         : null);
       
       if (!tenant) {
-        setError('No tenant selected');
+        setError('No organization selected');
         setLoading(false);
         return;
       }
@@ -849,7 +849,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
 
         {!currentTenant && !localStorage.getItem('currentTenant') && (
           <div className="notification-bar">
-            Please select a tenant from the sidebar dropdown to manage campaigns.
+            Please select an organization from the dropdown to manage campaigns.
           </div>
         )}
         
@@ -858,7 +858,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
         
         {!loading && !error && (currentTenant || localStorage.getItem('currentTenant')) && !campaignsConfig && (
           <div className="empty-state">
-            <p>No campaigns found for the selected tenant. Create or import a campaign to get started.</p>
+            <p>No campaigns found for the selected organization. Create or import a campaign to get started.</p>
             <div className="empty-state-actions">
               <button
                 className="btn btn-secondary"

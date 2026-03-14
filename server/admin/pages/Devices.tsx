@@ -151,7 +151,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
     }
 
     if (!currentTenant) {
-      setClaimError('No tenant selected. Please select a tenant from the dropdown.');
+      setClaimError('No organization selected. Please select an organization from the dropdown.');
       return;
     }
 
@@ -199,7 +199,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
 
   const handleReleaseDevice = async (deviceId: string) => {
     if (!currentTenant) {
-      setError('No tenant selected. Please select a tenant from the dropdown.');
+      setError('No organization selected. Please select an organization from the dropdown.');
       setSuccessMessage(null);
       return;
     }
@@ -264,7 +264,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
   
   const handleConfigureDevice = async (deviceId: string, deviceName: string) => {
     if (!currentTenant) {
-      setError('No tenant selected. Please select a tenant from the dropdown.');
+      setError('No organization selected. Please select an organization from the dropdown.');
       setSuccessMessage(null);
       return;
     }
@@ -286,7 +286,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
   
   const handleAssignCampaign = async () => {
     if (!currentTenant) {
-      setError('No tenant selected. Please select a tenant from the dropdown.');
+      setError('No organization selected. Please select an organization from the dropdown.');
       return;
     }
     
@@ -379,7 +379,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
 
         {!currentTenant && (
           <div className="notification-bar">
-            Please select a tenant from the top-right dropdown to manage devices.
+            Please select an organization from the top-right dropdown to manage devices.
           </div>
         )}
 
@@ -389,7 +389,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
 
         {!loading && !error && deviceRegistrations.length === 0 && (
           <div className="empty-state">
-            <p>No devices found for the selected tenant. Claim a device to get started.</p>
+            <p>No devices found for the selected organization. Claim a device to get started.</p>
             <button
               className="btn btn-primary"
               onClick={() => setShowClaimModal(true)}
@@ -402,7 +402,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
         
         {deviceRegistrations.length > 0 && (
           <div className="devices-grid">
-            <p>Showing {deviceRegistrations.length} device(s) for {currentTenant?.name || 'Unknown Tenant'}</p>
+            <p>Showing {deviceRegistrations.length} device(s) for {currentTenant?.name || 'Unknown Organization'}</p>
             <div className="timestamp-note">
               <span className="timestamp-info">ⓘ</span> Relative times (like "5 minutes ago") update with each page refresh. Hover over timestamps for exact time.
             </div>
@@ -526,7 +526,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
           <div className="modal-overlay">
             <div className="modal-content">
               <div className="modal-header">
-                <h2>Claim Device for {currentTenant?.name || 'Unknown Tenant'}</h2>
+                <h2>Claim Device for {currentTenant?.name || 'Unknown Organization'}</h2>
                 <button 
                   className="modal-close"
                   onClick={() => {

@@ -208,7 +208,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
         : null);
       
       if (!tenant) {
-        setError('No tenant selected');
+        setError('No organization selected');
         return;
       }
       
@@ -388,7 +388,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
         : null);
       
       if (!tenant) {
-        setError('No tenant selected');
+        setError('No organization selected');
         return;
       }
       
@@ -494,7 +494,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
         : null);
 
       if (!tenant) {
-        setError('No tenant selected');
+        setError('No organization selected');
         return;
       }
 
@@ -545,7 +545,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
           : null);
         
         if (!tenant) {
-          setError('No tenant selected');
+          setError('No organization selected');
           return;
         }
         
@@ -594,7 +594,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
           : null);
         
         if (!tenant) {
-          setError('No tenant selected');
+          setError('No organization selected');
           return;
         }
         
@@ -711,7 +711,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
         : null);
 
       if (!tenant) {
-        setError('No tenant selected');
+        setError('No organization selected');
         return;
       }
 
@@ -832,7 +832,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
 
         {!currentTenant && !localStorage.getItem('currentTenant') && (
           <div className="notification-bar">
-            Please select a tenant from the top-right dropdown to manage playlists.
+            Please select an organization from the top-right dropdown to manage playlists.
           </div>
         )}
         
@@ -841,7 +841,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
         
         {!loading && !error && (currentTenant || localStorage.getItem('currentTenant')) && !playlistConfig && (
           <div className="empty-state">
-            <p>No playlist configuration found for the selected tenant. Create a playlist to get started.</p>
+            <p>No playlist configuration found for the selected organization. Create a playlist to get started.</p>
             <div className="empty-state-actions">
               <button
                 className="btn btn-primary"
