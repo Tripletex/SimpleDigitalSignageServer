@@ -1,18 +1,20 @@
-# build directory
+# build output
 build
+dist
 
 # Dependency directories
 node_modules/
 
-
 # ide directory
 .idea
-server/scripts/device-uuid.txt
 *.pem
 
 # Environment files (contain secrets)
 .env
 server/.env
+
+# Deno lock file
+deno.lock
 
 .claude-memory-private
 .claude/settings.local.json

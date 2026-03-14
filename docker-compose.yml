@@ -19,49 +19,28 @@ services:
       timeout: 5s
       retries: 5
     
-  # Server service (uncomment to run the server in Docker)
+  # Server service (serves both API and admin UI — uncomment to run in Docker)
   # server:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
+  #   build: .
   #   container_name: signage-server
   #   ports:
   #     - "4000:4000"
   #   environment:
-  #     - NODE_ENV=development
+  #     - NODE_ENV=production
   #     - PORT=4000
-  #     - CORS_ORIGIN=http://localhost:3000
   #     - DB_HOST=postgres
   #     - DB_PORT=5432
   #     - DB_USER=signage
   #     - DB_PASSWORD=signage
   #     - DB_NAME=signage
   #     - SESSION_SECRET=your-secret-key-for-sessions
-  #     - WEBAUTHN_RP_ID=localhost
-  #     - WEBAUTHN_ORIGIN=http://localhost:4000
+  #     - RP_ID=localhost
+  #     - ORIGIN=http://localhost:4000
   #   depends_on:
   #     postgres:
   #       condition: service_healthy
   #   networks:
   #     - signage-network
-  #   restart: unless-stopped
-  
-  # Client service (uncomment to run the client in Docker)
-  # client:
-  #   build:
-  #     context: ./client
-  #     dockerfile: Dockerfile
-  #   container_name: signage-client
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     - REACT_APP_API_URL=http://localhost:4000
-  #   depends_on:
-  #     - server
-  #   networks:
-  #     - signage-network
-  #   volumes:
-  #     - ./client:/app
   #   restart: unless-stopped
 
 volumes:

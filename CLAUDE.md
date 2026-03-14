@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build and Run Commands
 - Server: `cd server && deno task dev` (dev mode with watch), `deno task start` (production)
-- Client: `npm start` (dev server), `npm run build` (production)
+- Admin UI dev: `cd server && deno task dev:admin` (Vite dev server on port 3000)
+- Admin UI build: `cd server && deno task build:admin` (outputs to server/dist/)
 - Tests: `cd server && deno task test`
 - Type check: `cd server && deno task check`
 - Database:
@@ -20,22 +21,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Session**: Custom PostgreSQL-backed session middleware
 - **IDs**: UUIDv7 (time-ordered) for all database record IDs
 
+## Admin UI Stack
+- **Framework**: React 18 with TypeScript
+- **Build**: Vite (deps in server/package.json)
+- **Routing**: react-router-dom v6
+- **Source**: `server/admin/` — built to `server/dist/`, served by the Deno server
+- **Dev proxy**: Vite proxies /api to localhost:4000
+
+## Project Structure
+```
+├── server/
+│   ├── deno.json        # Server config (Deno imports, tasks)
+│   ├── package.json     # Admin UI dependencies (React, Vite)
+│   ├── vite.config.ts   # Admin UI build config
+│   ├── index.html       # Vite entry point
+│   ├── src/             # Hono API server
+│   ├── admin/           # React admin UI source
+│   ├── migrations/      # Database migrations
+│   └── dist/            # Built admin UI output
+├── shared/              # Shared TypeScript types
+└── server-node-archived/  # Previous Node.js server (reference)
+```
+
 ## Database Migrations
 - Project uses node-pg-migrate for explicit, versioned migrations
-- Migration files are in server/migrations/ directory
+- Migration files are in `server/migrations/` directory
 - Each migration includes up (apply) and down (revert) functions
-- See server-node-archived/MIGRATIONS.md for historical documentation
 
 ## Code Style Guidelines
 - **Formatting**: 2-space indentation, single quotes, semicolons, trailing commas
 - **Naming**: camelCase for variables/functions, PascalCase for classes/components
-- **Imports**: 3rd-party first, project imports second, grouped by category; use `.ts` extensions
+- **Imports**: 3rd-party first, project imports second, grouped by category; use `.ts` extensions for server code
 - **Types**: Use TypeScript interfaces/types, explicit return types on functions
 - **Error Handling**: try/catch blocks, error middleware (handleErrors wrapper), consistent response structure
 - **Architecture**: Follow separation of concerns (controllers, services, repositories)
 - **Components**: Use functional React components with hooks
 - **State Management**: React hooks for local state
-- **Documentation**: JSDoc comments for functions and complex logic
 
 ## Security Requirements
 - All user input must be validated and sanitized both on the client side and server side
@@ -50,14 +71,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **XSS Protection**: Comprehensive Cross-Site Scripting prevention implemented
   - Automatic input sanitization and output encoding
   - Content Security Policy (CSP) headers with per-request nonces
-  - Field-specific sanitization rules for different content types
 - **Tenant Authorization**: Comprehensive multi-tenant authorization system
   - Role-based access control (Owner/Admin/Member roles)
   - Cached membership validation for performance (5-min TTL)
-  - Authorization bypass prevention for all tenant-specific endpoints
-
-## Project Structure
-- Server: Deno/Hono backend with TypeScript, PostgreSQL database (Drizzle ORM)
-- Client: React frontend with TypeScript and CSS modules
-- Shared: Common types and interfaces used by both client and server
-- server-node-archived: Previous Node.js/Express server (kept as reference)
