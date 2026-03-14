@@ -67,6 +67,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
   const [newScheduleEnd, setNewScheduleEnd] = useState<string>('17:00');
   const [newScheduleDays, setNewScheduleDays] = useState<string[]>(['mon', 'tue', 'wed', 'thu', 'fri']);
   const [newSchedulePlaylist, setNewSchedulePlaylist] = useState<string>('');
+  const [newScheduleWholeDay, setNewScheduleWholeDay] = useState<boolean>(false);
   
   const navigate = useNavigate();
 
@@ -303,63 +304,61 @@ const Campaigns: React.FC<CampaignsProps> = ({
       return;
     }
 
-    // Simple time validation
-    const startParts = newScheduleStart.split(':').map(Number);
-    const endParts = newScheduleEnd.split(':').map(Number);
-    
-    if (startParts.length !== 2 || endParts.length !== 2 ||
-        startParts.some(isNaN) || endParts.some(isNaN) ||
-        startParts[0] < 0 || startParts[0] > 23 || 
-        startParts[1] < 0 || startParts[1] > 59 ||
-        endParts[0] < 0 || endParts[0] > 23 || 
-        endParts[1] < 0 || endParts[1] > 59) {
-      setError('Invalid time format. Please use HH:MM format (24-hour)');
-      return;
-    }
-    
-    // Validate start time is before end time
+    // Use 00:00–00:00 for whole day schedules
+    const scheduleStart = newScheduleWholeDay ? '00:00' : newScheduleStart;
+    const scheduleEnd = newScheduleWholeDay ? '00:00' : newScheduleEnd;
+
+    const startParts = scheduleStart.split(':').map(Number);
+    const endParts = scheduleEnd.split(':').map(Number);
     const startMinutes = startParts[0] * 60 + startParts[1];
     const endMinutes = endParts[0] * 60 + endParts[1];
-    
-    if (startMinutes >= endMinutes) {
-      setError('End time must be after start time');
-      return;
+
+    if (!newScheduleWholeDay) {
+      if (startParts.length !== 2 || endParts.length !== 2 ||
+          startParts.some(isNaN) || endParts.some(isNaN) ||
+          startParts[0] < 0 || startParts[0] > 23 ||
+          startParts[1] < 0 || startParts[1] > 59 ||
+          endParts[0] < 0 || endParts[0] > 23 ||
+          endParts[1] < 0 || endParts[1] > 59) {
+        setError('Invalid time format. Please use HH:MM format (24-hour)');
+        return;
+      }
+
+      if (startMinutes >= endMinutes) {
+        setError('End time must be after start time');
+        return;
+      }
     }
-    
+
     // Get the currently selected campaign to check for overlap
     const currentCampaign = campaignsConfig?.campaigns.find(c => c.id === selectedCampaign);
     if (!currentCampaign) {
       setError('Selected campaign not found');
       return;
     }
-    
-    // Check for time overlaps on the same days
-    const hasOverlap = currentCampaign.playTime.some(schedule => {
-      // Check if any days overlap
-      const daysOverlap = schedule.days.some(day => newScheduleDays.includes(day));
-      if (!daysOverlap) return false;
-      
-      // Convert schedule times to minutes for comparison
-      const scheduleStartParts = schedule.start.split(':').map(Number);
-      const scheduleEndParts = schedule.end.split(':').map(Number);
-      const scheduleStartMinutes = scheduleStartParts[0] * 60 + scheduleStartParts[1];
-      const scheduleEndMinutes = scheduleEndParts[0] * 60 + scheduleEndParts[1];
-      
-      // Check for overlap
-      // Overlap occurs if:
-      // - new start time is within existing schedule, or
-      // - new end time is within existing schedule, or
-      // - new schedule completely encloses existing schedule
-      return (
-        (startMinutes >= scheduleStartMinutes && startMinutes < scheduleEndMinutes) ||
-        (endMinutes > scheduleStartMinutes && endMinutes <= scheduleEndMinutes) ||
-        (startMinutes <= scheduleStartMinutes && endMinutes >= scheduleEndMinutes)
-      );
-    });
-    
-    if (hasOverlap) {
-      setError('This schedule overlaps with an existing schedule on the same day(s). Please adjust the times or days.');
-      return;
+
+    // Check for time overlaps on the same days (skip for whole day)
+    if (!newScheduleWholeDay) {
+      const hasOverlap = currentCampaign.playTime.some(schedule => {
+        const daysOverlap = schedule.days.some(day => newScheduleDays.includes(day));
+        if (!daysOverlap) return false;
+
+        const scheduleStartParts = schedule.start.split(':').map(Number);
+        const scheduleEndParts = schedule.end.split(':').map(Number);
+        const scheduleStartMinutes = scheduleStartParts[0] * 60 + scheduleStartParts[1];
+        const scheduleEndMinutes = scheduleEndParts[0] * 60 + scheduleEndParts[1];
+
+        return (
+          (startMinutes >= scheduleStartMinutes && startMinutes < scheduleEndMinutes) ||
+          (endMinutes > scheduleStartMinutes && endMinutes <= scheduleEndMinutes) ||
+          (startMinutes <= scheduleStartMinutes && endMinutes >= scheduleEndMinutes)
+        );
+      });
+
+      if (hasOverlap) {
+        setError('This schedule overlaps with an existing schedule on the same day(s).');
+        return;
+      }
     }
 
     try {
@@ -410,8 +409,8 @@ const Campaigns: React.FC<CampaignsProps> = ({
       // Create schedule data to send to API
       const scheduleData = {
         playlistId: playlist.id,
-        start: newScheduleStart,
-        end: newScheduleEnd,
+        start: scheduleStart,
+        end: scheduleEnd,
         days: [...newScheduleDays]
       };
       
@@ -448,6 +447,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
 
         setCampaignsConfig(updatedConfig);
         setShowScheduleModal(false);
+        setNewScheduleWholeDay(false);
         setNewScheduleStart('09:00');
         setNewScheduleEnd('17:00');
         setNewScheduleDays(['mon', 'tue', 'wed', 'thu', 'fri']);
@@ -912,7 +912,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
                           onClick={() => handleDeleteCampaign(campaign.id)}
                           title="Delete campaign"
                         >
-                          🗑️
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                         </button>
                       </div>
                     </div>
@@ -948,7 +948,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
                                     onClick={() => handleDeleteSchedule(campaign.id, index)}
                                     title="Delete schedule"
                                   >
-                                    🗑️
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                   </button>
                                 </td>
                               </tr>
@@ -1056,6 +1056,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
                   className="modal-close"
                   onClick={() => {
                     setShowScheduleModal(false);
+                    setNewScheduleWholeDay(false);
                     setNewScheduleStart('09:00');
                     setNewScheduleEnd('17:00');
                     setNewScheduleDays(['mon', 'tue', 'wed', 'thu', 'fri']);
@@ -1085,30 +1086,43 @@ const Campaigns: React.FC<CampaignsProps> = ({
                     ))}
                   </div>
                 </div>
-                
-                <div className="form-row">
-                  <div className="form-group half">
-                    <label htmlFor="schedule-start">Start Time*</label>
+
+                <div className="form-group">
+                  <label className="checkbox-label">
                     <input
-                      type="time"
-                      id="schedule-start"
-                      className="form-input"
-                      value={newScheduleStart}
-                      onChange={(e) => setNewScheduleStart(e.target.value)}
+                      type="checkbox"
+                      checked={newScheduleWholeDay}
+                      onChange={(e) => setNewScheduleWholeDay(e.target.checked)}
                     />
-                  </div>
-                  
-                  <div className="form-group half">
-                    <label htmlFor="schedule-end">End Time*</label>
-                    <input
-                      type="time"
-                      id="schedule-end"
-                      className="form-input"
-                      value={newScheduleEnd}
-                      onChange={(e) => setNewScheduleEnd(e.target.value)}
-                    />
-                  </div>
+                    Whole day
+                  </label>
                 </div>
+
+                {!newScheduleWholeDay && (
+                  <div className="form-row">
+                    <div className="form-group half">
+                      <label htmlFor="schedule-start">Start Time*</label>
+                      <input
+                        type="time"
+                        id="schedule-start"
+                        className="form-input"
+                        value={newScheduleStart}
+                        onChange={(e) => setNewScheduleStart(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="form-group half">
+                      <label htmlFor="schedule-end">End Time*</label>
+                      <input
+                        type="time"
+                        id="schedule-end"
+                        className="form-input"
+                        value={newScheduleEnd}
+                        onChange={(e) => setNewScheduleEnd(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
                 
                 <div className="form-group">
                   <label htmlFor="schedule-playlist">Playlist*</label>
@@ -1136,6 +1150,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
                   className="cancel-button"
                   onClick={() => {
                     setShowScheduleModal(false);
+                    setNewScheduleWholeDay(false);
                     setNewScheduleStart('09:00');
                     setNewScheduleEnd('17:00');
                     setNewScheduleDays(['mon', 'tue', 'wed', 'thu', 'fri']);

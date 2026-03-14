@@ -185,9 +185,14 @@
   background-color: rgba(0, 0, 0, 0.05);
 }
 
+.action-button.delete {
+  background-color: #e74c3c;
+  color: white;
+}
+
 .action-button.delete:hover {
-  background-color: rgba(211, 47, 47, 0.1);
-  color: #d32f2f;
+  background-color: #c0392b;
+  color: white;
 }
 
 .campaign-description {
