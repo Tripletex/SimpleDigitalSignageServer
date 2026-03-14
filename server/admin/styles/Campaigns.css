@@ -21,115 +21,15 @@
   gap: 10px;
 }
 
-.create-campaign-btn {
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
+/* Button styles moved to common.css */
 
-.create-campaign-btn:hover {
-  background-color: #388e3c;
-}
-
-.create-campaign-btn:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-.secondary-btn {
-  background-color: #f0f0f0;
-  color: #333;
-  border: 1px solid #ccc;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.secondary-btn:hover {
-  background-color: #e0e0e0;
-}
-
-.secondary-btn:disabled {
-  background-color: #f0f0f0;
-  color: #999;
-  cursor: not-allowed;
-}
-
-.notification-bar {
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  padding: 15px;
-  margin-bottom: 20px;
-  color: #495057;
-}
-
-.error-message {
-  color: #d32f2f;
-  background-color: #ffebee;
-  padding: 10px;
-  border-radius: 4px;
-  margin: 10px 0;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  margin-top: 20px;
-}
-
-.empty-state-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin-top: 20px;
-}
+/* Common styles (notification-bar, error-message, empty-state) moved to common.css */
 
 .campaign-content {
   margin-top: 20px;
 }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.section-header h2 {
-  margin: 0;
-  color: #333;
-}
-
-.add-button {
-  background-color: transparent;
-  color: #4caf50;
-  border: 1px solid #4caf50;
-  padding: 5px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.add-button:hover {
-  background-color: #4caf50;
-  color: white;
-}
-
-.empty-message {
-  padding: 20px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  text-align: center;
-  color: #6c757d;
-}
+/* section-header, add-button, empty-message moved to common.css */
 
 .campaign-cards {
   display: grid;
@@ -167,33 +67,7 @@
   gap: 5px;
 }
 
-.action-button {
-  background-color: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  transition: background-color 0.3s;
-}
-
-.action-button:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.action-button.delete {
-  background-color: #e74c3c;
-  color: white;
-}
-
-.action-button.delete:hover {
-  background-color: #c0392b;
-  color: white;
-}
+/* action-button styles moved to common.css (btn-icon, btn-danger) */
 
 .campaign-description {
   padding: 15px;
@@ -243,158 +117,7 @@
   justify-content: flex-end;
 }
 
-.add-schedule-btn {
-  background-color: transparent;
-  color: #2196f3;
-  border: 1px solid #2196f3;
-  padding: 5px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.add-schedule-btn:hover {
-  background-color: #2196f3;
-  color: white;
-}
-
-/* Modal styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  width: 90%;
-  max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  color: #333;
-}
-
-.modal-header {
-  padding: 15px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-header h2 {
-  margin: 0;
-  color: #333;
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #666;
-  line-height: 1;
-}
-
-.modal-body {
-  padding: 15px;
-  flex-grow: 1;
-}
-
-.modal-footer {
-  padding: 15px;
-  border-top: 1px solid #eee;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.cancel-button {
-  background-color: transparent;
-  color: #666;
-  border: 1px solid #ccc;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.cancel-button:hover {
-  background-color: #f0f0f0;
-}
-
-.create-button {
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.create-button:hover {
-  background-color: #388e3c;
-}
-
-/* Form styles */
-.form-group {
-  margin-bottom: 15px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: 500;
-  color: #333;
-}
-
-.form-input, select.form-input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 14px;
-  background-color: #fff;
-  color: #333;
-}
-
-/* Specific styling for select elements */
-select.form-input {
-  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%23343a40' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  background-size: 8px 10px;
-  padding-right: 1.75rem; /* Provide space for the dropdown arrow */
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-}
-
-.form-input:focus {
-  border-color: #2196f3;
-  outline: none;
-}
-
-.form-row {
-  display: flex;
-  gap: 15px;
-}
-
-.form-group.half {
-  width: 50%;
-}
+/* add-schedule, modal, cancel/create buttons, form styles moved to common.css */
 
 /* Days selection styles */
 .days-selection {

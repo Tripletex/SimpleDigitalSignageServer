@@ -296,7 +296,7 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, setIsAuthenticated }) 
                           </button>
                           <button 
                             onClick={cancelEditPasskey}
-                            className="cancel-button"
+                            className="btn btn-ghost btn-sm"
                             disabled={loading}
                           >
                             Cancel

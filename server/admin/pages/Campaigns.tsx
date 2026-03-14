@@ -824,21 +824,21 @@ const Campaigns: React.FC<CampaignsProps> = ({
               onChange={handleImportJson} 
             />
             <button 
-              className="secondary-btn"
+              className="btn btn-secondary"
               onClick={() => document.getElementById('import-json')?.click()}
               disabled={!currentTenant && !localStorage.getItem('currentTenant')}
             >
               Import JSON
             </button>
-            <button 
-              className="secondary-btn"
+            <button
+              className="btn btn-secondary"
               onClick={handleExportJson}
               disabled={!campaignsConfig}
             >
               Export JSON
             </button>
-            <button 
-              className="create-campaign-btn"
+            <button
+              className="btn btn-primary"
               onClick={() => setShowCreateModal(true)}
               disabled={!currentTenant && !localStorage.getItem('currentTenant')}
             >
@@ -860,14 +860,14 @@ const Campaigns: React.FC<CampaignsProps> = ({
           <div className="empty-state">
             <p>No campaigns found for the selected tenant. Create or import a campaign to get started.</p>
             <div className="empty-state-actions">
-              <button 
-                className="secondary-btn"
+              <button
+                className="btn btn-secondary"
                 onClick={() => document.getElementById('import-json')?.click()}
               >
                 Import JSON
               </button>
-              <button 
-                className="create-campaign-btn"
+              <button
+                className="btn btn-primary"
                 onClick={() => setShowCreateModal(true)}
               >
                 Create Campaign
@@ -880,12 +880,6 @@ const Campaigns: React.FC<CampaignsProps> = ({
           <div className="campaign-content">
             <div className="section-header">
               <h2>Campaigns</h2>
-              <button 
-                className="add-button"
-                onClick={() => setShowCreateModal(true)}
-              >
-                + Add Campaign
-              </button>
             </div>
             
             {campaignsConfig.campaigns.length === 0 ? (
@@ -898,7 +892,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
                       <h3>{campaign.name}</h3>
                       <div className="campaign-actions">
                         <button 
-                          className="action-button"
+                          className="btn-icon"
                           onClick={() => {
                             setSelectedCampaign(campaign.id);
                             setShowScheduleModal(true);
@@ -908,7 +902,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
                           +
                         </button>
                         <button 
-                          className="action-button delete"
+                          className="btn btn-danger btn-sm"
                           onClick={() => handleDeleteCampaign(campaign.id)}
                           title="Delete campaign"
                         >
@@ -944,7 +938,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
                                 <td>{schedule.playlistName}</td>
                                 <td>
                                   <button 
-                                    className="action-button delete"
+                                    className="btn btn-danger btn-sm"
                                     onClick={() => handleDeleteSchedule(campaign.id, index)}
                                     title="Delete schedule"
                                   >
@@ -960,7 +954,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
                     
                     <div className="campaign-card-footer">
                       <button 
-                        className="add-schedule-btn"
+                        className="btn btn-outline-info btn-sm"
                         onClick={() => {
                           setSelectedCampaign(campaign.id);
                           setShowScheduleModal(true);
@@ -1025,7 +1019,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
               </div>
               <div className="modal-footer">
                 <button 
-                  className="cancel-button"
+                  className="btn btn-ghost"
                   onClick={() => {
                     setShowCreateModal(false);
                     setNewCampaignName('');
@@ -1036,7 +1030,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
                   Cancel
                 </button>
                 <button 
-                  className="create-button"
+                  className="btn btn-primary"
                   onClick={handleCreateCampaign}
                 >
                   Create Campaign
@@ -1147,7 +1141,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
               </div>
               <div className="modal-footer">
                 <button 
-                  className="cancel-button"
+                  className="btn btn-ghost"
                   onClick={() => {
                     setShowScheduleModal(false);
                     setNewScheduleWholeDay(false);
@@ -1162,7 +1156,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
                   Cancel
                 </button>
                 <button 
-                  className="create-button"
+                  className="btn btn-primary"
                   onClick={handleAddSchedule}
                 >
                   Add Schedule

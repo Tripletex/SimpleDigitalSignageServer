@@ -325,7 +325,7 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
             </ul>
             
             <button 
-              className="new-organization-btn"
+              className="btn btn-primary"
               onClick={() => setShowCreateOrgForm(true)}
             >
               Create New Organization
@@ -345,7 +345,7 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                   
                   {!selectedOrg.isPersonal && selectedOrg.role === 'owner' && (
                     <button 
-                      className="delete-organization-btn"
+                      className="btn btn-danger"
                       onClick={() => {
                         // In a real app, this would be an API call with confirmation
                         const updatedOrgs = organizations.filter(org => org.id !== selectedOrgId);
@@ -371,7 +371,7 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                     <h3>Members</h3>
                     {!selectedOrg.isPersonal && (selectedOrg.role === 'owner' || selectedOrg.role === 'admin') && (
                       <button 
-                        className="invite-btn"
+                        className="btn btn-primary btn-sm"
                         onClick={() => setShowInviteForm(!showInviteForm)}
                       >
                         {showInviteForm ? 'Cancel' : 'Invite Member'}
@@ -405,7 +405,7 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                       </div>
                       
                       <button 
-                        className="send-invite-btn"
+                        className="btn btn-info"
                         onClick={handleInviteUser}
                       >
                         Send Invitation
@@ -523,7 +523,7 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
               </div>
               <div className="modal-footer">
                 <button 
-                  className="cancel-button"
+                  className="btn btn-ghost"
                   onClick={() => {
                     setShowCreateOrgForm(false);
                     setNewOrgName('');
@@ -533,7 +533,7 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                   Cancel
                 </button>
                 <button 
-                  className="create-button"
+                  className="btn btn-primary"
                   onClick={handleCreateOrganization}
                   disabled={!newOrgName.trim()}
                 >

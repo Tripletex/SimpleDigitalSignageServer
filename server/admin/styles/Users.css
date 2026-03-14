@@ -27,20 +27,7 @@
   font-size: 1.4rem;
 }
 
-.add-user-btn {
-  background-color: #2ecc71;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.2s;
-}
-
-.add-user-btn:hover {
-  background-color: #27ae60;
-}
+/* add-user-btn styles moved to common.css (btn btn-primary) */
 
 .table-responsive {
   overflow-x: auto;

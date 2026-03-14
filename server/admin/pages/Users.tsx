@@ -82,7 +82,7 @@ const Users: React.FC<UsersProps> = ({ user, setIsAuthenticated, setUser }) => {
           <div className="users-list">
             <div className="users-header">
               <h2>System Users</h2>
-              <button className="add-user-btn">Add New User</button>
+              <button className="btn btn-primary">Add New User</button>
             </div>
             
             <p>Total: {users.length} user(s)</p>

@@ -369,29 +369,29 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
         <div className="devices-header">
           <h1>Device Management</h1>
           <button 
-            className="claim-device-btn"
+            className="btn btn-primary"
             onClick={() => setShowClaimModal(true)}
             disabled={!currentTenant}
           >
             Claim Device
           </button>
         </div>
-        
+
         {!currentTenant && (
           <div className="notification-bar">
             Please select a tenant from the top-right dropdown to manage devices.
           </div>
         )}
-        
+
         {loading && <p>Loading devices...</p>}
         {error && <p className="error-message">{error}</p>}
         {successMessage && <p className="success-message">{successMessage}</p>}
-        
+
         {!loading && !error && deviceRegistrations.length === 0 && (
           <div className="empty-state">
             <p>No devices found for the selected tenant. Claim a device to get started.</p>
-            <button 
-              className="claim-device-btn"
+            <button
+              className="btn btn-primary"
               onClick={() => setShowClaimModal(true)}
               disabled={!currentTenant}
             >
@@ -568,7 +568,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
               </div>
               <div className="modal-footer">
                 <button 
-                  className="cancel-button"
+                  className="btn btn-ghost"
                   onClick={() => {
                     setShowClaimModal(false);
                     setClaimError(null);
@@ -580,7 +580,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
                   Cancel
                 </button>
                 <button 
-                  className="claim-button"
+                  className="btn btn-info"
                   onClick={handleClaimDevice}
                   disabled={!!claimSuccess}
                 >
@@ -639,7 +639,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
               </div>
               <div className="modal-footer">
                 <button 
-                  className="cancel-button"
+                  className="btn btn-ghost"
                   onClick={() => {
                     setShowCampaignModal(false);
                     setError(null);
@@ -648,7 +648,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
                   Cancel
                 </button>
                 <button 
-                  className="assign-button"
+                  className="btn btn-primary"
                   onClick={handleAssignCampaign}
                   disabled={assigningCampaign}
                 >
