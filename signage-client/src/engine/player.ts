@@ -246,40 +246,14 @@ export class Player {
     this.showingStatusPage = true;
     this.currentUrl = null;
 
-    const html = `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Signage Client</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #1a1a2e; color: #e0e0e0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    display: flex; align-items: center; justify-content: center;
-    height: 100vh; text-align: center;
-  }
-  .container { max-width: 600px; padding: 2rem; }
-  h1 { font-size: 1.5rem; color: #7c8dff; margin-bottom: 1.5rem; }
-  .device-id {
-    font-family: 'SF Mono', 'Fira Code', monospace;
-    font-size: 2rem; color: #fff;
-    background: #16213e; border: 2px solid #7c8dff;
-    border-radius: 12px; padding: 1rem 1.5rem;
-    margin: 1rem 0; letter-spacing: 0.05em;
-    word-break: break-all; user-select: all;
-  }
-  .status { font-size: 1rem; color: #888; margin-top: 1.5rem; }
-  .server { font-size: 0.85rem; color: #555; margin-top: 0.5rem; }
-</style></head>
-<body><div class="container">
-  <h1>Signage Client</h1>
-  <div>Device ID</div>
-  <div class="device-id">${this.deviceId}</div>
-  <div class="status">${status}</div>
-  <div class="server">Server: ${this.serverUrl}</div>
-</div></body></html>`)}`;
+    const params = new URLSearchParams();
+    params.set('deviceId', this.deviceId);
+    params.set('server', this.serverUrl);
+    params.set('message', status);
+    const embedUrl = `http://127.0.0.1:${this.localPort}/embed/status?${params}`;
 
     try {
-      await this.cdp.navigate(html);
+      await this.cdp.navigate(embedUrl);
       this.display.on();
       console.log(`[PLAYER] Showing status page: ${status}`);
     } catch (error) {

@@ -10,6 +10,10 @@ export function startLocalServer(port: number): void {
   }}, (req) => {
     const url = new URL(req.url);
 
+    if (url.pathname === '/embed/status') {
+      return handleStatusEmbed(url);
+    }
+
     if (url.pathname === '/embed/image') {
       return handleImageEmbed(url);
     }
@@ -185,6 +189,52 @@ function handleImageEmbed(url: URL): Response {
   img{${imgStyle}}
 </style></head>
 <body><img src="${src.replace(/"/g, '&quot;')}" /></body></html>`;
+
+  return new Response(html, {
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+}
+
+function handleStatusEmbed(url: URL): Response {
+  const deviceId = url.searchParams.get('deviceId') || '';
+  const serverUrl = url.searchParams.get('server') || '';
+  const message = url.searchParams.get('message') || '';
+
+  const qrPayload = JSON.stringify({ type: 'signage-device', deviceId, v: 1 });
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Signage Client</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"><\/script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#1a1a2e;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center}
+  .container{max-width:600px;padding:2rem}
+  h1{font-size:1.5rem;color:#7c8dff;margin-bottom:1.5rem}
+  .device-id{font-family:'SF Mono','Fira Code',monospace;font-size:1.6rem;color:#fff;background:#16213e;border:2px solid #7c8dff;border-radius:12px;padding:1rem 1.5rem;margin:1rem 0;letter-spacing:.05em;word-break:break-all;user-select:all}
+  .qr-container{margin:1.5rem auto;display:inline-block;background:#fff;padding:16px;border-radius:12px}
+  .qr-container svg{display:block}
+  .status{font-size:1rem;color:#888;margin-top:1.5rem}
+  .server{font-size:.85rem;color:#555;margin-top:.5rem}
+</style></head>
+<body><div class="container">
+  <h1>Signage Client</h1>
+  <div id="qr" class="qr-container"></div>
+  <div>Device ID</div>
+  <div class="device-id">${deviceId}</div>
+  <div class="status">${message}</div>
+  <div class="server">Server: ${serverUrl}</div>
+</div>
+<script>
+try {
+  var qr = qrcode(0, 'M');
+  qr.addData(${JSON.stringify(qrPayload)});
+  qr.make();
+  document.getElementById('qr').innerHTML = qr.createSvgTag(6, 0);
+} catch(e) {
+  document.getElementById('qr').style.display = 'none';
+}
+<\/script>
+</body></html>`;
 
   return new Response(html, {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
