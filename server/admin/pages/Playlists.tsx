@@ -8,8 +8,11 @@ import '../styles/Playlists.css';
 interface PlaylistItem {
   id: string | number;
   type: string; // 'URL', 'SLEEP', 'IMAGE', 'YOUTUBE'
-  url?: {
+  data?: {
     location: string;
+    muted?: boolean;
+    loop?: boolean;
+    loopCount?: number;
   };
   duration: number;
 }
@@ -44,14 +47,18 @@ const Playlists: React.FC<PlaylistsProps> = ({
   const [showItemModal, setShowItemModal] = useState<boolean>(false);
   const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null);
   const [editMode, setEditMode] = useState<boolean>(false);
-  
+  const [editingItem, setEditingItem] = useState<PlaylistItem | null>(null);
+
   // Form states
   const [newPlaylistName, setNewPlaylistName] = useState<string>('');
-  
+
   // New item states
   const [newItemType, setNewItemType] = useState<string>('URL');
   const [newItemUrl, setNewItemUrl] = useState<string>('');
   const [newItemDuration, setNewItemDuration] = useState<number>(10);
+  const [newItemMuted, setNewItemMuted] = useState<boolean>(false);
+  const [newItemLoop, setNewItemLoop] = useState<boolean>(false);
+  const [newItemLoopCount, setNewItemLoopCount] = useState<number>(1);
   
   const navigate = useNavigate();
 
@@ -122,7 +129,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
               items: (playlist.items || []).map((item: any) => ({
                 id: item.id,
                 type: item.type,
-                url: item.url,
+                data: item.data,
                 duration: item.duration
               }))
             }))
@@ -234,6 +241,17 @@ const Playlists: React.FC<PlaylistsProps> = ({
   };
 
 
+  const resetItemForm = () => {
+    setNewItemType('URL');
+    setNewItemUrl('');
+    setNewItemDuration(10);
+    setNewItemMuted(false);
+    setNewItemLoop(false);
+    setNewItemLoopCount(1);
+    setSelectedPlaylist(null);
+    setEditingItem(null);
+  };
+
   const handleAddItem = async () => {
     if (!selectedPlaylist) {
       setError('No playlist selected');
@@ -245,7 +263,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
       return;
     }
 
-    if (newItemDuration <= 0) {
+    if (newItemType !== 'YOUTUBE' && newItemDuration <= 0) {
       setError('Duration must be greater than 0');
       return;
     }
@@ -284,19 +302,29 @@ const Playlists: React.FC<PlaylistsProps> = ({
       // Create new item based on type
       let newItem: any;
 
-      if (newItemType === 'URL' || newItemType === 'IMAGE' || newItemType === 'YOUTUBE') {
+      if (newItemType === 'YOUTUBE') {
+        const dataObj: any = { location: newItemUrl };
+        if (newItemMuted) dataObj.muted = true;
+        if (newItemLoop) {
+          dataObj.loop = true;
+          dataObj.loopCount = newItemLoopCount;
+        }
         newItem = {
           type: newItemType,
-          url: {
-            location: newItemUrl
-          },
-          duration: newItemDuration
+          data: dataObj,
+          duration: 0,
+        };
+      } else if (newItemType === 'URL' || newItemType === 'IMAGE') {
+        newItem = {
+          type: newItemType,
+          data: { location: newItemUrl },
+          duration: newItemDuration,
         };
       } else {
         // SLEEP type or other types
         newItem = {
           type: newItemType,
-          duration: newItemDuration
+          duration: newItemDuration,
         };
       }
 
@@ -334,9 +362,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
 
         setPlaylistConfig(updatedConfig);
         setShowItemModal(false);
-        setNewItemType('URL');
-        setNewItemUrl('');
-        setNewItemDuration(10);
+        resetItemForm();
         setError(null);
       } else {
         throw new Error(data.message || 'Failed to add item to playlist');
@@ -473,7 +499,109 @@ const Playlists: React.FC<PlaylistsProps> = ({
     }
   };
 
-  // Export/import functionality removed - now handled in PlaylistGroups component
+  const handleEditItem = (playlistName: string, item: PlaylistItem) => {
+    setSelectedPlaylist(playlistName);
+    setEditingItem(item);
+    setNewItemType(item.type);
+    setNewItemUrl(item.data?.location || '');
+    setNewItemDuration(item.duration);
+    setNewItemMuted(item.data?.muted || false);
+    setNewItemLoop(item.data?.loop || false);
+    setNewItemLoopCount(item.data?.loopCount || 1);
+    setShowItemModal(true);
+  };
+
+  const handleSaveEditItem = async () => {
+    if (!selectedPlaylist || !editingItem) return;
+
+    if ((newItemType === 'URL' || newItemType === 'IMAGE' || newItemType === 'YOUTUBE') && !newItemUrl) {
+      setError(`URL is required for ${newItemType} type items`);
+      return;
+    }
+
+    if (newItemType !== 'YOUTUBE' && newItemDuration <= 0) {
+      setError('Duration must be greater than 0');
+      return;
+    }
+
+    if (newItemType === 'URL' || newItemType === 'IMAGE' || newItemType === 'YOUTUBE') {
+      try {
+        new URL(newItemUrl);
+      } catch {
+        setError('Invalid URL format. Please enter a valid URL including http:// or https://');
+        return;
+      }
+    }
+
+    try {
+      const tenant = currentTenant || (localStorage.getItem('currentTenant')
+        ? JSON.parse(localStorage.getItem('currentTenant')!)
+        : null);
+
+      if (!tenant) {
+        setError('No tenant selected');
+        return;
+      }
+
+      const playlist = playlistConfig!.playlists.find(p => p.name === selectedPlaylist);
+      if (!playlist || !playlist.id) {
+        setError('Playlist not found');
+        return;
+      }
+
+      const updatedItems = playlist.items.map(item => {
+        if (item.id !== editingItem!.id) return item;
+        const updated: any = {
+          ...item,
+          type: newItemType,
+          duration: newItemType === 'YOUTUBE' ? 0 : newItemDuration,
+        };
+        if (newItemType === 'YOUTUBE') {
+          const dataObj: any = { location: newItemUrl };
+          if (newItemMuted) dataObj.muted = true;
+          if (newItemLoop) {
+            dataObj.loop = true;
+            dataObj.loopCount = newItemLoopCount;
+          }
+          updated.data = dataObj;
+        } else if (newItemType === 'URL' || newItemType === 'IMAGE') {
+          updated.data = { location: newItemUrl };
+        } else {
+          delete updated.data;
+        }
+        return updated;
+      });
+
+      const updatedPlaylist = { ...playlist, items: updatedItems };
+
+      const response = await csrfFetch(`/api/tenant/${tenant.id}/playlists/${playlist.id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedPlaylist),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        const playlistIndex = playlistConfig!.playlists.findIndex(p => p.name === selectedPlaylist);
+        const updatedConfig = JSON.parse(JSON.stringify(playlistConfig));
+        updatedConfig.playlists[playlistIndex] = data.playlist;
+        setPlaylistConfig(updatedConfig);
+        setShowItemModal(false);
+        resetItemForm();
+        setError(null);
+      } else {
+        throw new Error(data.message || 'Failed to update item');
+      }
+    } catch (err) {
+      setError(`Error updating item: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
 
   // Utility to get the type icon
   const getTypeIcon = (type: string) => {
@@ -585,7 +713,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
                             onClick={() => handleDeletePlaylist(playlist.name)}
                             title="Delete playlist"
                           >
-                            🗑️
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                           </button>
                         </div>
                       </div>
@@ -613,28 +741,28 @@ const Playlists: React.FC<PlaylistsProps> = ({
                                     {item.type}
                                   </td>
                                   <td>
-                                    {item.type === 'URL' && item.url ? (
-                                      <a href={item.url.location} target="_blank" rel="noreferrer">
-                                        {item.url.location.length > 30 
-                                          ? `${item.url.location.substring(0, 30)}...` 
-                                          : item.url.location}
+                                    {item.type === 'URL' && item.data ? (
+                                      <a href={item.data.location} target="_blank" rel="noreferrer">
+                                        {item.data.location.length > 30
+                                          ? `${item.data.location.substring(0, 30)}...`
+                                          : item.data.location}
                                       </a>
-                                    ) : item.type === 'IMAGE' && item.url ? (
+                                    ) : item.type === 'IMAGE' && item.data ? (
                                       <div className="thumbnail-container">
-                                        <a href={item.url.location} target="_blank" rel="noreferrer">
+                                        <a href={item.data.location} target="_blank" rel="noreferrer">
                                           <span className="image-label">
-                                            {item.url.location.length > 30 
-                                              ? `${item.url.location.substring(0, 30)}...` 
-                                              : item.url.location}
+                                            {item.data.location.length > 30
+                                              ? `${item.data.location.substring(0, 30)}...`
+                                              : item.data.location}
                                           </span>
                                         </a>
                                       </div>
-                                    ) : item.type === 'YOUTUBE' && item.url ? (
-                                      <a href={item.url.location} target="_blank" rel="noreferrer">
+                                    ) : item.type === 'YOUTUBE' && item.data ? (
+                                      <a href={item.data.location} target="_blank" rel="noreferrer">
                                         <span className="youtube-label">
-                                          {item.url.location.length > 30 
-                                            ? `${item.url.location.substring(0, 30)}...` 
-                                            : item.url.location}
+                                          {item.data.location.length > 30
+                                            ? `${item.data.location.substring(0, 30)}...`
+                                            : item.data.location}
                                         </span>
                                       </a>
                                     ) : item.type === 'SLEEP' ? (
@@ -643,15 +771,34 @@ const Playlists: React.FC<PlaylistsProps> = ({
                                       'Content not available'
                                     )}
                                   </td>
-                                  <td>{formatDuration(item.duration)}</td>
                                   <td>
-                                    <button 
-                                      className="action-button delete"
-                                      onClick={() => handleDeleteItem(playlist.name, item.id)}
-                                      title="Delete item"
-                                    >
-                                      🗑️
-                                    </button>
+                                    {item.duration === 0 ? 'Video length' : formatDuration(item.duration)}
+                                    {item.data?.loop && (
+                                      <span style={{ color: '#7f8c8d', fontSize: '0.8rem' }}>
+                                        {' '}({item.data.loopCount || 1}x)
+                                      </span>
+                                    )}
+                                    {item.data?.muted && (
+                                      <span style={{ color: '#7f8c8d', fontSize: '0.8rem' }}> muted</span>
+                                    )}
+                                  </td>
+                                  <td>
+                                    <div className="playlist-actions">
+                                      <button
+                                        className="action-button"
+                                        onClick={() => handleEditItem(playlist.name, item)}
+                                        title="Edit item"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                      </button>
+                                      <button
+                                        className="action-button delete"
+                                        onClick={() => handleDeleteItem(playlist.name, item.id)}
+                                        title="Delete item"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
                               ))}
@@ -741,15 +888,12 @@ const Playlists: React.FC<PlaylistsProps> = ({
           <div className="modal-overlay">
             <div className="modal-content">
               <div className="modal-header">
-                <h2>Add Item to {selectedPlaylist}</h2>
-                <button 
+                <h2>{editingItem ? 'Edit Item' : `Add Item to ${selectedPlaylist}`}</h2>
+                <button
                   className="modal-close"
                   onClick={() => {
                     setShowItemModal(false);
-                    setNewItemType('URL');
-                    setNewItemUrl('');
-                    setNewItemDuration(10);
-                    setSelectedPlaylist(null);
+                    resetItemForm();
                     setError(null);
                   }}
                 >
@@ -775,8 +919,8 @@ const Playlists: React.FC<PlaylistsProps> = ({
                 {(newItemType === 'URL' || newItemType === 'IMAGE' || newItemType === 'YOUTUBE') && (
                   <div className="form-group">
                     <label htmlFor="item-url">
-                      {newItemType === 'URL' ? 'URL*' : 
-                       newItemType === 'IMAGE' ? 'Image URL*' : 
+                      {newItemType === 'URL' ? 'URL*' :
+                       newItemType === 'IMAGE' ? 'Image URL*' :
                        'YouTube URL*'}
                     </label>
                     <input
@@ -784,8 +928,8 @@ const Playlists: React.FC<PlaylistsProps> = ({
                       id="item-url"
                       className="form-input"
                       placeholder={
-                        newItemType === 'URL' ? 'https://example.com' : 
-                        newItemType === 'IMAGE' ? 'https://example.com/image.jpg' : 
+                        newItemType === 'URL' ? 'https://example.com' :
+                        newItemType === 'IMAGE' ? 'https://example.com/image.jpg' :
                         'https://youtube.com/watch?v=...'
                       }
                       value={newItemUrl}
@@ -796,42 +940,79 @@ const Playlists: React.FC<PlaylistsProps> = ({
                     </small>
                   </div>
                 )}
-                
-                <div className="form-group">
-                  <label htmlFor="item-duration">Duration (seconds)*</label>
-                  <input
-                    type="number"
-                    id="item-duration"
-                    className="form-input"
-                    min="1"
-                    value={newItemDuration}
-                    onChange={(e) => setNewItemDuration(parseInt(e.target.value))}
-                  />
-                </div>
+
+                {newItemType === 'YOUTUBE' && (
+                  <>
+                    <div className="form-group">
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={newItemMuted}
+                          onChange={(e) => setNewItemMuted(e.target.checked)}
+                        />
+                        Muted
+                      </label>
+                    </div>
+                    <div className="form-group">
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={newItemLoop}
+                          onChange={(e) => setNewItemLoop(e.target.checked)}
+                        />
+                        Loop
+                      </label>
+                    </div>
+                    {newItemLoop && (
+                      <div className="form-group">
+                        <label htmlFor="item-loop-count">Number of loops</label>
+                        <input
+                          type="number"
+                          id="item-loop-count"
+                          className="form-input"
+                          min="1"
+                          value={newItemLoopCount}
+                          onChange={(e) => setNewItemLoopCount(parseInt(e.target.value) || 1)}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {newItemType !== 'YOUTUBE' && (
+                  <div className="form-group">
+                    <label htmlFor="item-duration">Duration (seconds)*</label>
+                    <input
+                      type="number"
+                      id="item-duration"
+                      className="form-input"
+                      min="1"
+                      value={newItemDuration}
+                      onChange={(e) => setNewItemDuration(parseInt(e.target.value))}
+                    />
+                  </div>
+                )}
                 
                 {error && (
                   <p className="error-message">{error}</p>
                 )}
               </div>
               <div className="modal-footer">
-                <button 
+                <button
                   className="cancel-button"
                   onClick={() => {
                     setShowItemModal(false);
-                    setNewItemType('URL');
-                    setNewItemUrl('');
-                    setNewItemDuration(10);
-                    setSelectedPlaylist(null);
+                    resetItemForm();
                     setError(null);
                   }}
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   className="create-button"
-                  onClick={handleAddItem}
+                  onClick={editingItem ? handleSaveEditItem : handleAddItem}
                 >
-                  Add Item
+                  {editingItem ? 'Save Changes' : 'Add Item'}
                 </button>
               </div>
             </div>

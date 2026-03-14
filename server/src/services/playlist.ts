@@ -16,7 +16,7 @@ const playlistService = {
     createdById: string;
     items?: Array<{
       type: string;
-      url?: { location: string };
+      data?: { location: string; muted?: boolean; loop?: boolean; loopCount?: number };
       duration: number;
     }>;
   }) {
@@ -28,7 +28,7 @@ const playlistService = {
     description?: string;
     items?: Array<{
       type: string;
-      url?: { location: string };
+      data?: { location: string; muted?: boolean; loop?: boolean; loopCount?: number };
       duration: number;
     }>;
   }) {
@@ -44,7 +44,7 @@ const playlistService = {
     tenantId: string,
     data: {
       type: string;
-      url?: { location: string };
+      data?: { location: string; muted?: boolean; loop?: boolean; loopCount?: number };
       duration: number;
     },
   ) {
@@ -53,7 +53,7 @@ const playlistService = {
 
   async updatePlaylistItem(id: string, data: Partial<{
     type: string;
-    url: { location: string };
+    data: { location: string; muted?: boolean; loop?: boolean; loopCount?: number };
     duration: number;
     position: number;
   }>) {

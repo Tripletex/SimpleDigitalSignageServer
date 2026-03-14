@@ -9,6 +9,7 @@ import type { AppEnv } from '../types/context.ts';
 import { playlistSchema, playlistReorderSchema } from '../validators/playlistValidator.ts';
 import playlistRepository from '../repositories/playlist.ts';
 import { checkTenantAccess } from '../middleware/tenantAuthorization.ts';
+import { wsManager } from '../services/websocket.ts';
 
 /**
  * Get all playlists for a tenant
@@ -83,7 +84,7 @@ export async function createPlaylist(c: Context<AppEnv>): Promise<Response> {
   const body = c.get('sanitizedBody') || await c.req.json();
   const data = playlistSchema.parse(body);
 
-  const playlist = await playlistRepository.createPlaylist({
+  const created = await playlistRepository.createPlaylist({
     name: data.name,
     description: data.description,
     tenantId,
@@ -91,9 +92,12 @@ export async function createPlaylist(c: Context<AppEnv>): Promise<Response> {
     items: data.items,
   });
 
+  // Fetch the full playlist with items relation for the response
+  const playlist = await playlistRepository.getPlaylistById(created.id);
+
   return c.json({
     success: true,
-    playlist,
+    playlist: playlist ?? { ...created, items: [] },
   }, 201);
 }
 
@@ -110,19 +114,24 @@ export async function updatePlaylist(c: Context<AppEnv>): Promise<Response> {
   const body = c.get('sanitizedBody') || await c.req.json();
   const data = playlistSchema.parse(body);
 
-  const playlist = await playlistRepository.updatePlaylist(id, {
+  const updated = await playlistRepository.updatePlaylist(id, {
     name: data.name,
     description: data.description,
     items: data.items,
   });
 
-  if (!playlist) {
+  if (!updated) {
     return c.json({ success: false, message: 'Playlist not found' }, 404);
   }
 
+  // Re-fetch with items relation for the response
+  const playlist = await playlistRepository.getPlaylistById(id);
+
+  try { await wsManager.notifyDevicesByPlaylist(id); } catch { /* ignore */ }
+
   return c.json({
     success: true,
-    playlist,
+    playlist: playlist ?? { ...updated, items: [] },
   });
 }
 
@@ -131,6 +140,8 @@ export async function updatePlaylist(c: Context<AppEnv>): Promise<Response> {
  */
 export async function deletePlaylist(c: Context<AppEnv>): Promise<Response> {
   const id = c.req.param('id');
+
+  try { await wsManager.notifyDevicesByPlaylist(id); } catch { /* ignore */ }
 
   await playlistRepository.deletePlaylist(id);
 
@@ -154,6 +165,8 @@ export async function reorderPlaylistItems(c: Context<AppEnv>): Promise<Response
   }));
 
   await playlistRepository.reorderPlaylistItems(items);
+
+  try { await wsManager.notifyDevicesByPlaylist(id); } catch { /* ignore */ }
 
   return c.json({
     success: true,

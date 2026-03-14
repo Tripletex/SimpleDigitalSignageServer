@@ -18,7 +18,7 @@ export const playlistItems = pgTable('playlist_items', {
   tenantId: uuid('tenant_id').notNull().references(() => tenants.id),
   position: integer('position').notNull(),
   type: varchar('type', { length: 255 }).notNull(),
-  url: jsonb('url'),  // { location: string }
+  data: jsonb('data'),  // { location: string, muted?: boolean, loop?: boolean, loopCount?: number }
   duration: integer('duration').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

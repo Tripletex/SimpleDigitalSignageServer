@@ -3,11 +3,11 @@ import { db } from '../db/client.ts';
 import { playlists, playlistItems } from '../db/schema/index.ts';
 import { uuidv7 } from '../utils/helpers.ts';
 
-function validateUrl(url: string): void {
+function validateUrl(location: string): void {
   try {
-    new URL(url);
+    new URL(location);
   } catch {
-    throw new Error(`Invalid URL: ${url}`);
+    throw new Error(`Invalid URL: ${location}`);
   }
 }
 
@@ -44,7 +44,7 @@ const playlistRepository = {
     createdById: string;
     items?: Array<{
       type: string;
-      url?: { location: string };
+      data?: { location: string; muted?: boolean; loop?: boolean; loopCount?: number };
       duration: number;
     }>;
   }) {
@@ -61,8 +61,8 @@ const playlistRepository = {
 
       if (data.items && data.items.length > 0) {
         const itemValues = data.items.map((item, index) => {
-          if (item.type === 'url' && item.url?.location) {
-            validateUrl(item.url.location);
+          if (item.data?.location) {
+            validateUrl(item.data.location);
           }
           return {
             id: uuidv7(),
@@ -70,7 +70,7 @@ const playlistRepository = {
             tenantId: data.tenantId,
             position: index + 1,
             type: item.type,
-            url: item.url ?? null,
+            data: item.data ?? null,
             duration: item.duration,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -89,7 +89,7 @@ const playlistRepository = {
     description?: string;
     items?: Array<{
       type: string;
-      url?: { location: string };
+      data?: { location: string; muted?: boolean; loop?: boolean; loopCount?: number };
       duration: number;
     }>;
   }) {
@@ -109,8 +109,8 @@ const playlistRepository = {
 
         if (data.items.length > 0) {
           const itemValues = data.items.map((item, index) => {
-            if (item.type === 'url' && item.url?.location) {
-              validateUrl(item.url.location);
+            if (item.data?.location) {
+              validateUrl(item.data.location);
             }
             return {
               id: uuidv7(),
@@ -118,7 +118,7 @@ const playlistRepository = {
               tenantId: playlist.tenantId,
               position: index + 1,
               type: item.type,
-              url: item.url ?? null,
+              data: item.data ?? null,
               duration: item.duration,
               createdAt: new Date(),
               updatedAt: new Date(),
@@ -147,7 +147,7 @@ const playlistRepository = {
     tenantId: string,
     data: {
       type: string;
-      url?: { location: string };
+      data?: { location: string; muted?: boolean; loop?: boolean; loopCount?: number };
       duration: number;
     },
   ) {
@@ -164,7 +164,7 @@ const playlistRepository = {
       tenantId,
       position: nextPosition,
       type: data.type,
-      url: data.url ?? null,
+      data: data.data ?? null,
       duration: data.duration,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -174,12 +174,12 @@ const playlistRepository = {
 
   async updatePlaylistItem(id: string, data: Partial<{
     type: string;
-    url: { location: string };
+    data: { location: string; muted?: boolean; loop?: boolean; loopCount?: number };
     duration: number;
     position: number;
   }>) {
-    if (data.type === 'url' && data.url?.location) {
-      validateUrl(data.url.location);
+    if (data.data?.location) {
+      validateUrl(data.data.location);
     }
 
     const result = await db.update(playlistItems)

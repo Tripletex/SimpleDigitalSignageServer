@@ -9,6 +9,7 @@ import type { AppEnv } from '../types/context.ts';
 import { playlistGroupSchema, playlistScheduleSchema } from '../validators/playlistGroupValidator.ts';
 import playlistGroupRepository from '../repositories/playlistGroup.ts';
 import { checkTenantAccess } from '../middleware/tenantAuthorization.ts';
+import { wsManager } from '../services/websocket.ts';
 
 /**
  * Get all playlist groups for a tenant
@@ -127,6 +128,8 @@ export async function updatePlaylistGroup(c: Context<AppEnv>): Promise<Response>
     return c.json({ success: false, message: 'Playlist group not found' }, 404);
   }
 
+  try { await wsManager.notifyDevicesByCampaign(id); } catch { /* ignore */ }
+
   return c.json({
     success: true,
     playlistGroup: group,
@@ -138,6 +141,8 @@ export async function updatePlaylistGroup(c: Context<AppEnv>): Promise<Response>
  */
 export async function deletePlaylistGroup(c: Context<AppEnv>): Promise<Response> {
   const id = c.req.param('id');
+
+  try { await wsManager.notifyDevicesByCampaign(id); } catch { /* ignore */ }
 
   await playlistGroupRepository.deletePlaylistGroup(id);
 
@@ -170,6 +175,8 @@ export async function addSchedule(c: Context<AppEnv>): Promise<Response> {
     days: data.days,
   });
 
+  try { await wsManager.notifyDevicesByCampaign(id); } catch { /* ignore */ }
+
   return c.json({
     success: true,
     schedule,
@@ -180,7 +187,10 @@ export async function addSchedule(c: Context<AppEnv>): Promise<Response> {
  * Delete a schedule from a playlist group
  */
 export async function deleteSchedule(c: Context<AppEnv>): Promise<Response> {
+  const id = c.req.param('id');
   const scheduleId = c.req.param('scheduleId');
+
+  try { await wsManager.notifyDevicesByCampaign(id); } catch { /* ignore */ }
 
   await playlistGroupRepository.deletePlaylistSchedule(scheduleId);
 

@@ -12,6 +12,9 @@ import deviceRepository from '../repositories/device.ts';
 import deviceRegistrationRepository from '../repositories/deviceRegistration.ts';
 import deviceApiKeyRepository from '../repositories/deviceApiKey.ts';
 import tenantRepository from '../repositories/tenant.ts';
+import playlistGroupRepository from '../repositories/playlistGroup.ts';
+import playlistRepository from '../repositories/playlist.ts';
+import { wsManager } from '../services/websocket.ts';
 
 /**
  * Get the set of tenant IDs accessible to the authenticated caller.
@@ -219,18 +222,24 @@ export async function claimDevice(c: Context<AppEnv>): Promise<Response> {
   const body = c.get('sanitizedBody') || await c.req.json();
   const claimData = deviceClaimSchema.parse(body);
 
-  const device = await deviceRepository.claimDevice(
-    claimData.deviceId,
-    tenantId,
-    user.id,
-    claimData.displayName,
-  );
+  try {
+    const device = await deviceRepository.claimDevice(
+      claimData.deviceId,
+      tenantId,
+      user.id,
+      claimData.displayName,
+    );
 
-  if (device) {
-    return c.json({ success: true, device });
+    if (device) {
+      return c.json({ success: true, device });
+    }
+
+    console.error(`[CLAIM] Device ${claimData.deviceId} not found or claim returned no result`);
+    return c.json({ success: false, message: 'Device not found' }, 404);
+  } catch (error) {
+    console.error('[CLAIM] Error claiming device:', error instanceof Error ? error.message : error);
+    return c.json({ success: false, message: 'Failed to claim device' }, 400);
   }
-
-  return c.json({ success: false, message: 'Failed to claim device' }, 400);
 }
 
 /**
@@ -266,6 +275,10 @@ export async function releaseDevice(c: Context<AppEnv>): Promise<Response> {
   console.log(`[RELEASE DEVICE] Release result:`, result);
 
   if (result) {
+    try {
+      wsManager.updateDeviceCampaign(deviceId, null);
+      wsManager.notifyDevice(deviceId, { type: 'device_released', timestamp: new Date().toISOString() });
+    } catch { /* ignore */ }
     return c.json({ success: true, message: 'Device released successfully' });
   }
 
@@ -301,12 +314,76 @@ export async function assignCampaign(c: Context<AppEnv>): Promise<Response> {
 
   const result = await deviceRepository.assignCampaign(
     deviceId,
-    assignmentData.campaignId ?? '',
+    assignmentData.campaignId ?? null,
   );
 
   if (result) {
+    try {
+      wsManager.updateDeviceCampaign(deviceId, assignmentData.campaignId ?? null);
+      wsManager.notifyDevice(deviceId, { type: 'campaign_changed', timestamp: new Date().toISOString() });
+    } catch { /* ignore */ }
     return c.json({ success: true, device: result });
   }
 
   return c.json({ success: false, message: 'Failed to assign campaign' }, 400);
+}
+
+/**
+ * Get the assigned campaign content for a device
+ */
+export async function getDeviceContent(c: Context<AppEnv>): Promise<Response> {
+  const device = c.get('device');
+  const fullDevice = await deviceRepository.getDeviceById(device.id);
+
+  if (!fullDevice) {
+    return c.json({ success: false, message: 'Device not found' }, 404);
+  }
+
+  if (!fullDevice.tenantId) {
+    return c.json({ success: false, message: 'Device not claimed' }, 404);
+  }
+
+  if (!fullDevice.campaignId) {
+    return c.json({ success: false, message: 'No campaign assigned' }, 404);
+  }
+
+  const playlistGroup = await playlistGroupRepository.getPlaylistGroupById(fullDevice.campaignId);
+
+  if (!playlistGroup) {
+    return c.json({ success: false, message: 'Campaign not found' }, 404);
+  }
+
+  const schedules = await Promise.all(
+    (playlistGroup.schedules ?? []).map(async (schedule) => {
+      const playlist = await playlistRepository.getPlaylistById(schedule.playlistId);
+      return {
+        id: schedule.id,
+        start: schedule.start,
+        end: schedule.end,
+        days: schedule.days,
+        playlist: playlist
+          ? {
+            id: playlist.id,
+            name: playlist.name,
+            items: (playlist.items ?? []).map((item) => ({
+              id: item.id,
+              type: item.type,
+              data: item.data,
+              duration: item.duration,
+              position: item.position,
+            })),
+          }
+          : null,
+      };
+    }),
+  );
+
+  return c.json({
+    success: true,
+    campaign: {
+      id: playlistGroup.id,
+      name: playlistGroup.name,
+      schedules,
+    },
+  });
 }
