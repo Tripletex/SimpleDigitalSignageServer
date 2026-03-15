@@ -25,6 +25,9 @@ RUN deno cache src/main.ts
 # Copy built admin UI
 COPY --from=adminbuild /app/dist ./dist/
 
+# Run as non-root user (deno user is provided by the base image)
+USER deno
+
 EXPOSE 4000
 
-CMD ["deno", "run", "--allow-net", "--allow-read", "--allow-env", "--allow-run", "src/main.ts"]
+CMD ["deno", "run", "--allow-net", "--allow-read=/app/server", "--allow-env", "--allow-run", "src/main.ts"]
