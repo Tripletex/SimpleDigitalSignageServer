@@ -22,7 +22,6 @@ import { env } from '../config/env.ts';
 import { userRegisterSchema } from '../validators/userValidator.ts';
 import userService from '../services/user.ts';
 import webauthnService from '../services/webauthn.ts';
-import tenantService from '../services/tenant.ts';
 import tenantRepository from '../repositories/tenant.ts';
 import authenticatorRepository from '../repositories/authenticator.ts';
 import emailVerificationService from '../services/emailVerification.ts';
@@ -122,27 +121,28 @@ export async function completeRegistration(c: Context<AppEnv>): Promise<Response
     return userService.createUser({ email, displayName, role });
   });
 
-  // Create personal tenant
-  await tenantService.createPersonalTenantIfNeeded(user.id, user.email);
+  // Create personal tenant and process any pending invitations for this email
+  await userService.processNewUserTenantSetup(user.id, user.email);
 
-  // Handle invitation if present
+  // Also handle session-based invitation (when user signed up via invite link)
   const invitingTenantId = session.invitingTenantId;
   const invitedRole = session.invitedRole;
 
   if (invitingTenantId && invitedRole) {
-    console.log(`Handling invitation for user ${user.id} to tenant ${invitingTenantId} with role ${invitedRole}`);
-
-    try {
-      await tenantRepository.addTenantMember({
-        tenantId: invitingTenantId,
-        userId: user.id,
-        role: invitedRole as 'owner' | 'admin' | 'member',
-        status: 'active',
-      });
-      console.log(`Added user ${user.id} to tenant ${invitingTenantId} with role ${invitedRole}`);
-    } catch (error) {
-      console.error(`Error adding user to invited tenant: ${error}`);
-      // Continue with registration even if tenant membership fails
+    // Check if already added by processNewUserTenantSetup
+    const existingMember = await tenantRepository.getTenantMember(invitingTenantId, user.id);
+    if (!existingMember) {
+      try {
+        await tenantRepository.addTenantMember({
+          tenantId: invitingTenantId,
+          userId: user.id,
+          role: invitedRole as 'owner' | 'admin' | 'member',
+          status: 'active',
+        });
+        console.log(`Added user ${user.id} to tenant ${invitingTenantId} with role ${invitedRole}`);
+      } catch (error) {
+        console.error(`Error adding user to invited tenant: ${error}`);
+      }
     }
   }
 
@@ -199,20 +199,16 @@ export async function selfRegister(c: Context<AppEnv>): Promise<Response> {
   console.log('Self-register request received');
 
   const body = (c.get('sanitizedBody') || await c.req.json()) as { email: string };
+  const parsed = userRegisterSchema.safeParse(body);
 
-  // Basic email validation
-  const emailRegex = env.isProd
-    ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    : /^.+@.+\..+$/;
-
-  if (!body.email || !emailRegex.test(body.email)) {
+  if (!parsed.success) {
     return c.json({
       success: false,
       message: 'Valid email address is required',
     }, 400);
   }
 
-  const email = body.email;
+  const email = parsed.data.email;
 
   // Check if user already exists
   const existingUser = await userService.getUserByEmail(email);
