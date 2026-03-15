@@ -56,6 +56,9 @@ export async function verifyEmailToken(c: Context<AppEnv>): Promise<Response> {
     }, 400);
   }
 
+  // Consume the token so it cannot be reused
+  await emailVerificationService.deleteVerification(verification.id);
+
   // Store verified email in session for registration
   const session = c.get('session');
   session.verifiedEmail = verification.email;
@@ -348,9 +351,8 @@ export async function selfRegister(c: Context<AppEnv>): Promise<Response> {
   // Create a verification token
   const token = await emailVerificationService.createEmailVerification(email, isFirstUser);
 
-  // Build the verification link using the request's origin
-  const requestOrigin = c.req.header('origin') || c.req.header('referer')?.replace(/\/[^/]*$/, '') || `http://localhost:${env.PORT}`;
-  const verificationLink = `${requestOrigin}/verify-email/${token}`;
+  // Build the verification link using the configured origin (not request headers, which are attacker-controlled)
+  const verificationLink = `${env.ORIGIN}/verify-email/${token}`;
 
   if (env.isProd) {
     // TODO: Implement email sending in production

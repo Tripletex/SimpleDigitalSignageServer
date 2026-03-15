@@ -194,12 +194,17 @@ app.get('*', async (c) => {
 
   const clientPath = env.CLIENT_PATH;
   const basePath = import.meta.dirname || '.';
+  const staticRoot = await Deno.realPath(`${basePath}/${clientPath}`);
 
   // Try to serve static file first
-  const filePath = `${basePath}/${clientPath}${c.req.path}`;
   try {
-    if (c.req.path !== '/' && !c.req.path.includes('..')) {
-      const file = await Deno.readFile(filePath);
+    if (c.req.path !== '/') {
+      const resolvedPath = await Deno.realPath(`${staticRoot}${c.req.path}`);
+      // Ensure resolved path stays within the static directory (prevents traversal)
+      if (!resolvedPath.startsWith(staticRoot)) {
+        return c.json({ message: 'Forbidden' }, 403);
+      }
+      const file = await Deno.readFile(resolvedPath);
       const ext = c.req.path.split('.').pop() || '';
       const mimeTypes: Record<string, string> = {
         'js': 'application/javascript',
