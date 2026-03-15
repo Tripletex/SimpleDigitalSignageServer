@@ -15,6 +15,7 @@ const tenantSecretRepository = {
     return secrets.map((s) => ({
       id: s.id,
       name: s.name,
+      domain: s.domain,
       description: s.description,
       createdById: s.createdById,
       createdByEmail: s.createdBy?.email,
@@ -42,6 +43,7 @@ const tenantSecretRepository = {
     tenantId: string;
     name: string;
     value: string;
+    domain?: string;
     description?: string;
     createdById: string;
   }) {
@@ -52,6 +54,7 @@ const tenantSecretRepository = {
       tenantId: data.tenantId,
       name: data.name,
       encryptedValue,
+      domain: data.domain ?? null,
       description: data.description ?? null,
       createdById: data.createdById,
       createdAt: new Date(),
@@ -61,6 +64,7 @@ const tenantSecretRepository = {
     return {
       id: created.id,
       name: created.name,
+      domain: created.domain,
       description: created.description,
       createdAt: created.createdAt,
       updatedAt: created.updatedAt,
@@ -70,10 +74,12 @@ const tenantSecretRepository = {
   async updateSecret(id: string, tenantId: string, data: {
     name?: string;
     value?: string;
+    domain?: string | null;
     description?: string;
   }) {
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (data.name !== undefined) updates.name = data.name;
+    if (data.domain !== undefined) updates.domain = data.domain;
     if (data.description !== undefined) updates.description = data.description;
     if (data.value !== undefined) updates.encryptedValue = await encrypt(data.value);
 
@@ -90,6 +96,7 @@ const tenantSecretRepository = {
     return {
       id: updated.id,
       name: updated.name,
+      domain: updated.domain,
       description: updated.description,
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,

@@ -252,6 +252,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     tenant_id: { type: 'uuid', notNull: true, references: 'tenants', onDelete: 'CASCADE' },
     name: { type: 'varchar(255)', notNull: true },
     encrypted_value: { type: 'text', notNull: true },
+    domain: { type: 'varchar(255)' },
     description: { type: 'text' },
     created_by_id: { type: 'uuid', notNull: true, references: 'users', onDelete: 'CASCADE' },
     created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },

@@ -20,6 +20,7 @@ export async function createSecret(c: Context<AppEnv>): Promise<Response> {
       tenantId,
       name: data.name,
       value: data.value,
+      domain: data.domain,
       description: data.description,
       createdById: user.id,
     });

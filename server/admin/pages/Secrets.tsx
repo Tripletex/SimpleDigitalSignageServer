@@ -7,6 +7,7 @@ import '../styles/Devices.css'; // Reuse table/modal styles
 interface SecretEntry {
   id: string;
   name: string;
+  domain?: string;
   description?: string;
   createdByEmail?: string;
   createdAt: string;
@@ -39,6 +40,7 @@ const Secrets: React.FC<SecretsProps> = ({ user, setIsAuthenticated, setUser, cu
   const [editingSecret, setEditingSecret] = useState<SecretEntry | null>(null);
   const [formName, setFormName] = useState('');
   const [formValue, setFormValue] = useState('');
+  const [formDomain, setFormDomain] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -103,6 +105,7 @@ const Secrets: React.FC<SecretsProps> = ({ user, setIsAuthenticated, setUser, cu
     setEditingSecret(null);
     setFormName('');
     setFormValue('');
+    setFormDomain('');
     setFormDescription('');
     setError(null);
     setShowModal(true);
@@ -112,6 +115,7 @@ const Secrets: React.FC<SecretsProps> = ({ user, setIsAuthenticated, setUser, cu
     setEditingSecret(secret);
     setFormName(secret.name);
     setFormValue(''); // Never pre-fill the value
+    setFormDomain(secret.domain || '');
     setFormDescription(secret.description || '');
     setError(null);
     setShowModal(true);
@@ -133,9 +137,10 @@ const Secrets: React.FC<SecretsProps> = ({ user, setIsAuthenticated, setUser, cu
 
       if (editingSecret) {
         // Update
-        const body: Record<string, string> = {};
+        const body: Record<string, string | null> = {};
         if (formName !== editingSecret.name) body.name = formName;
         if (formValue) body.value = formValue;
+        if (formDomain !== (editingSecret.domain || '')) body.domain = formDomain || null;
         if (formDescription !== (editingSecret.description || '')) body.description = formDescription;
 
         if (Object.keys(body).length === 0) {
@@ -158,7 +163,7 @@ const Secrets: React.FC<SecretsProps> = ({ user, setIsAuthenticated, setUser, cu
         const response = await csrfFetch(`/api/tenant/${currentTenant.id}/secrets`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: formName, value: formValue, description: formDescription || undefined }),
+          body: JSON.stringify({ name: formName, value: formValue, domain: formDomain || undefined, description: formDescription || undefined }),
         });
 
         if (!response.ok) {
@@ -250,6 +255,7 @@ const Secrets: React.FC<SecretsProps> = ({ user, setIsAuthenticated, setUser, cu
               <thead>
                 <tr>
                   <th>Name</th>
+                  <th>Domain</th>
                   <th>Description</th>
                   <th>Created By</th>
                   <th>Updated</th>
@@ -260,6 +266,7 @@ const Secrets: React.FC<SecretsProps> = ({ user, setIsAuthenticated, setUser, cu
                 {secrets.map((secret) => (
                   <tr key={secret.id}>
                     <td><code>{secret.name}</code></td>
+                    <td>{secret.domain || '-'}</td>
                     <td>{secret.description || '-'}</td>
                     <td>{secret.createdByEmail || '-'}</td>
                     <td>{new Date(secret.updatedAt).toLocaleDateString()}</td>
@@ -314,6 +321,20 @@ const Secrets: React.FC<SecretsProps> = ({ user, setIsAuthenticated, setUser, cu
                     value={formValue}
                     onChange={(e) => setFormValue(e.target.value)}
                   />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="secret-domain">Domain</label>
+                  <input
+                    id="secret-domain"
+                    className="form-input"
+                    placeholder="e.g. grafana.example.com"
+                    value={formDomain}
+                    onChange={(e) => setFormDomain(e.target.value)}
+                  />
+                  <span style={{ fontSize: '0.8em', color: '#888' }}>
+                    The domain this secret applies to. Used to auto-match secrets to URLs.
+                  </span>
                 </div>
 
                 <div className="form-group">
