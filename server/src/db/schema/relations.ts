@@ -3,6 +3,7 @@ import { users, authenticators, emailVerifications } from './users.ts';
 import { tenants, tenantMembers, pendingInvitations } from './tenants.ts';
 import { devices, deviceNetworks, deviceRegistrations, deviceAuthChallenges, deviceApiKeys, deviceDisplayCampaigns } from './devices.ts';
 import { playlists, playlistItems, playlistGroups, playlistSchedules } from './playlists.ts';
+import { tenantSecrets } from './tenantSecrets.ts';
 
 // Users relations
 export const usersRelations = relations(users, ({ many }) => ({
@@ -184,5 +185,17 @@ export const playlistSchedulesRelations = relations(playlistSchedules, ({ one })
   tenant: one(tenants, {
     fields: [playlistSchedules.tenantId],
     references: [tenants.id],
+  }),
+}));
+
+// TenantSecrets relations
+export const tenantSecretsRelations = relations(tenantSecrets, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [tenantSecrets.tenantId],
+    references: [tenants.id],
+  }),
+  createdBy: one(users, {
+    fields: [tenantSecrets.createdById],
+    references: [users.id],
   }),
 }));

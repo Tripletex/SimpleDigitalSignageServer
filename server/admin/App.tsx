@@ -11,6 +11,7 @@ import Profile from './pages/Profile';
 import Playlists from './pages/Playlists';
 import Campaigns from './pages/Campaigns';
 import Settings from './pages/Settings';
+import Secrets from './pages/Secrets';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -154,6 +155,20 @@ function App() {
                 user={user} 
                 setIsAuthenticated={setIsAuthenticated} 
                 setUser={setUser} 
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/secrets"
+          element={
+            isAuthenticated ? (
+              <Secrets
+                user={user}
+                setIsAuthenticated={setIsAuthenticated}
+                setUser={setUser}
               />
             ) : (
               <Navigate to="/login" replace />

@@ -13,6 +13,7 @@ export const env = {
   SESSION_SECRET: Deno.env.get('SESSION_SECRET') || '',
   CLIENT_PATH: Deno.env.get('CLIENT_PATH') || '../dist',
   JWT_SECRET: Deno.env.get('JWT_SECRET') || '',
+  ENCRYPTION_KEY: Deno.env.get('ENCRYPTION_KEY') || '',
   get isDev() { return this.NODE_ENV === 'development'; },
   get isProd() { return this.NODE_ENV === 'production'; },
 };

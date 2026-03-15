@@ -37,6 +37,7 @@ import tenantRoutes from './routes/tenant.ts';
 import playlistRoutes from './routes/playlist.ts';
 import playlistGroupRoutes from './routes/playlistGroup.ts';
 import setupRoutes from './routes/setup.ts';
+import tenantSecretRoutes from './routes/tenantSecret.ts';
 
 const app = new Hono<AppEnv>();
 
@@ -184,6 +185,7 @@ app.route('/api/tenants', tenantRoutes);
 app.route('/api', playlistRoutes);
 app.route('/api', playlistGroupRoutes);
 app.route('/api', setupRoutes);
+app.route('/api', tenantSecretRoutes);
 
 // ---------------------------------------------------------------------------
 // Static file serving with CSP nonce injection

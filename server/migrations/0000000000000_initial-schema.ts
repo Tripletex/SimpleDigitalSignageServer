@@ -245,6 +245,22 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   pgm.createIndex('device_api_keys', 'active');
 
   // -----------------------------------------------------------------------
+  // Tenant secrets
+  // -----------------------------------------------------------------------
+  pgm.createTable('tenant_secrets', {
+    id: { type: 'uuid', primaryKey: true },
+    tenant_id: { type: 'uuid', notNull: true, references: 'tenants', onDelete: 'CASCADE' },
+    name: { type: 'varchar(255)', notNull: true },
+    encrypted_value: { type: 'text', notNull: true },
+    description: { type: 'text' },
+    created_by_id: { type: 'uuid', notNull: true, references: 'users', onDelete: 'CASCADE' },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+  });
+  pgm.createIndex('tenant_secrets', ['tenant_id', 'name'], { unique: true });
+  pgm.createIndex('tenant_secrets', 'tenant_id');
+
+  // -----------------------------------------------------------------------
   // Row-Level Security
   // -----------------------------------------------------------------------
   pgm.sql(`
@@ -275,6 +291,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     'tenants', 'tenant_members', 'devices', 'device_networks',
     'device_registrations', 'device_auth_challenges', 'device_display_campaigns',
     'playlist_groups', 'playlists', 'playlist_items', 'playlist_schedules',
+    'tenant_secrets',
   ];
 
   for (const table of rlsTables) {
@@ -298,6 +315,7 @@ export function down(pgm: MigrationBuilder): void {
     'tenants', 'tenant_members', 'devices', 'device_networks',
     'device_registrations', 'device_auth_challenges', 'device_display_campaigns',
     'playlist_groups', 'playlists', 'playlist_items', 'playlist_schedules',
+    'tenant_secrets',
   ];
 
   for (const table of rlsTables) {
@@ -308,6 +326,7 @@ export function down(pgm: MigrationBuilder): void {
   pgm.sql('DROP FUNCTION IF EXISTS check_tenant_access(UUID, UUID);');
   pgm.sql('DROP FUNCTION IF EXISTS get_user_tenant_ids(UUID);');
 
+  pgm.dropTable('tenant_secrets');
   pgm.dropTable('device_api_keys');
   pgm.dropTable('device_auth_challenges');
   pgm.dropTable('device_registrations');
