@@ -33,8 +33,16 @@ export interface Campaign {
   schedules: Schedule[];
 }
 
+/** Per-display content mapping returned by the server. */
+export interface DisplayContent {
+  campaign: Campaign | null;
+}
+
 export interface ContentResponse {
   success: boolean;
+  /** Per-display campaign mapping (new multi-display format). */
+  displays?: Record<string, DisplayContent>;
+  /** Legacy single-campaign field — kept for backward compat during transition. */
   campaign?: Campaign;
   message?: string;
 }

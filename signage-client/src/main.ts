@@ -93,7 +93,7 @@ async function main(): Promise<void> {
     }
   } catch (error) {
     if ((error as Error & { status?: number }).status === 401) {
-      await handleAuthFailure(config, client, creds, wsConnection);
+      await handleAuthFailure(config, client, creds, wsConnection, player);
     }
     player.setStatusMessage('Waiting for content');
   }
@@ -108,7 +108,7 @@ async function main(): Promise<void> {
       await client.ping(creds.deviceId, Deno.hostname(), getNetworkInterfaces(), displays);
     } catch (error) {
       if ((error as Error & { status?: number }).status === 401) {
-        await handleAuthFailure(config, client, creds, wsConnection);
+        await handleAuthFailure(config, client, creds, wsConnection, player);
       }
     }
   }, config.heartbeatInterval);
@@ -126,7 +126,7 @@ async function main(): Promise<void> {
       }
     } catch (error) {
       if ((error as Error & { status?: number }).status === 401) {
-        await handleAuthFailure(config, client, creds, wsConnection);
+        await handleAuthFailure(config, client, creds, wsConnection, player);
       }
     }
   }, config.contentRefreshInterval);
@@ -209,6 +209,7 @@ async function handleAuthFailure(
   client: ApiClient,
   creds: DeviceCredentials,
   wsConnection: WebSocketConnection,
+  player?: Player,
 ): Promise<void> {
   // First try challenge-response re-auth (device still exists, key rotated)
   try {
@@ -230,6 +231,7 @@ async function handleAuthFailure(
     creds.deviceId = newCreds.deviceId;
     creds.apiKey = newCreds.apiKey;
     client.setApiKey(newCreds.apiKey);
+    player?.setDeviceInfo(newCreds.deviceId, config.serverUrl, config.localPort);
     wsConnection.setApiKey(newCreds.apiKey);
     wsConnection.disconnect();
     wsConnection.connect();

@@ -5,7 +5,8 @@ import { storage } from '../system/storage.ts';
 export class ContentManager {
   private config: ClientConfig;
   private client: ApiClient;
-  private campaign: Campaign | null = null;
+  /** Per-display campaign mapping */
+  private displayCampaigns: Record<string, Campaign | null> = {};
   private intervalId: number | null = null;
   private _statusMessage: string = 'Waiting for content';
 
@@ -14,8 +15,19 @@ export class ContentManager {
     this.client = client;
   }
 
-  getCampaign(): Campaign | null {
-    return this.campaign;
+  /** Get the campaign for a specific display. Falls back to first available. */
+  getCampaign(displayName?: string): Campaign | null {
+    if (displayName && this.displayCampaigns[displayName] !== undefined) {
+      return this.displayCampaigns[displayName];
+    }
+    // Fallback: return first available campaign
+    const entries = Object.values(this.displayCampaigns);
+    return entries.find((c) => c !== null) ?? null;
+  }
+
+  /** Get all display→campaign mappings. */
+  getDisplayCampaigns(): Record<string, Campaign | null> {
+    return { ...this.displayCampaigns };
   }
 
   get statusMessage(): string {
@@ -25,21 +37,31 @@ export class ContentManager {
   async fetchContent(): Promise<Campaign | null> {
     try {
       const response = await this.client.fetchContent();
-      if (response.success && response.campaign) {
-        this.campaign = response.campaign;
+      if (response.success && response.displays) {
+        // Multi-display format
+        this.displayCampaigns = {};
+        for (const [displayName, content] of Object.entries(response.displays)) {
+          this.displayCampaigns[displayName] = content.campaign;
+        }
         this._statusMessage = '';
+
         // Cache to disk
         await storage.writeJson(
           `${this.config.configDir}/content_cache.json`,
-          response.campaign,
+          this.displayCampaigns,
         );
-        console.log(`[CONTENT] Fetched campaign: ${response.campaign.name} (${response.campaign.schedules.length} schedules)`);
-        return this.campaign;
+
+        const displayNames = Object.keys(this.displayCampaigns);
+        console.log(`[CONTENT] Fetched campaigns for ${displayNames.length} display(s): ${displayNames.join(', ')}`);
+
+        // Return first campaign for backward compat with Player
+        return this.getCampaign();
       }
-      // Server returned a specific reason — clear campaign and cache
+
+      // No displays assigned
       this._statusMessage = response.message || 'No campaign assigned';
       console.log(`[CONTENT] ${this._statusMessage}`);
-      this.campaign = null;
+      this.displayCampaigns = {};
       await storage.remove(`${this.config.configDir}/content_cache.json`);
       return null;
     } catch (error) {
@@ -57,14 +79,15 @@ export class ContentManager {
   }
 
   async loadFromCache(): Promise<Campaign | null> {
-    const cached = await storage.readJson<Campaign>(
+    const cached = await storage.readJson<Record<string, Campaign | null>>(
       `${this.config.configDir}/content_cache.json`,
     );
     if (cached) {
-      this.campaign = cached;
-      console.log(`[CONTENT] Loaded from cache: ${cached.name}`);
+      this.displayCampaigns = cached;
+      const names = Object.keys(cached);
+      console.log(`[CONTENT] Loaded from cache: ${names.length} display(s)`);
     }
-    return this.campaign;
+    return this.getCampaign();
   }
 
   startAutoRefresh(): void {
