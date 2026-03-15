@@ -11,7 +11,7 @@ interface DeviceConnection {
   ws: WebSocket;
   deviceId: string;
   tenantId: string | null;
-  campaignId: string | null;
+  campaignIds: Set<string>;
 }
 
 class WebSocketManager {
@@ -32,14 +32,14 @@ class WebSocketManager {
     this.closeAll();
   }
 
-  addConnection(deviceId: string, tenantId: string | null, campaignId: string | null, ws: WebSocket): void {
+  addConnection(deviceId: string, tenantId: string | null, campaignIds: string[], ws: WebSocket): void {
     // Close existing connection for this device
     const existing = this.connections.get(deviceId);
     if (existing) {
       try { existing.ws.close(1000, 'Replaced by new connection'); } catch { /* ignore */ }
     }
 
-    this.connections.set(deviceId, { ws, deviceId, tenantId, campaignId });
+    this.connections.set(deviceId, { ws, deviceId, tenantId, campaignIds: new Set(campaignIds) });
 
     ws.onclose = () => {
       this.connections.delete(deviceId);
@@ -80,7 +80,7 @@ class WebSocketManager {
     };
 
     for (const conn of this.connections.values()) {
-      if (conn.campaignId === campaignId) {
+      if (conn.campaignIds.has(campaignId)) {
         this.send(conn.ws, event);
       }
     }
@@ -95,7 +95,7 @@ class WebSocketManager {
 
       const campaignIds = new Set(schedules.map((s) => s.playlistGroupId));
       console.log(`[WS] Playlist ${playlistId} used in campaigns: [${[...campaignIds].join(', ')}]`);
-      console.log(`[WS] Connected devices: ${[...this.connections.entries()].map(([id, c]) => `${id}(campaign=${c.campaignId})`).join(', ')}`);
+      console.log(`[WS] Connected devices: ${[...this.connections.entries()].map(([id, c]) => `${id}(campaigns=[${[...c.campaignIds].join(',')}])`).join(', ')}`);
 
       const event: WsEvent = {
         type: 'content_updated',
@@ -104,9 +104,12 @@ class WebSocketManager {
 
       let notified = 0;
       for (const conn of this.connections.values()) {
-        if (conn.campaignId && campaignIds.has(conn.campaignId)) {
-          this.send(conn.ws, event);
-          notified++;
+        for (const connCampaignId of conn.campaignIds) {
+          if (campaignIds.has(connCampaignId)) {
+            this.send(conn.ws, event);
+            notified++;
+            break; // Only notify once per device
+          }
         }
       }
       console.log(`[WS] Notified ${notified} devices about playlist change`);
@@ -115,10 +118,10 @@ class WebSocketManager {
     }
   }
 
-  updateDeviceCampaign(deviceId: string, campaignId: string | null): void {
+  updateDeviceCampaigns(deviceId: string, displayCampaigns: Array<{ campaignId: string }>): void {
     const conn = this.connections.get(deviceId);
     if (conn) {
-      conn.campaignId = campaignId;
+      conn.campaignIds = new Set(displayCampaigns.map((dc) => dc.campaignId));
     }
   }
 

@@ -164,7 +164,6 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     display_name: { type: 'varchar(255)' },
     display_count: { type: 'integer', notNull: true, default: 0 },
     displays: { type: 'jsonb' },
-    campaign_id: { type: 'uuid', references: 'playlist_groups', onDelete: 'SET NULL' },
     health_status: { type: 'device_health_status', notNull: true, default: 'UNKNOWN' },
     last_health_check: { type: 'timestamptz', default: null },
     health_details: { type: 'jsonb', default: '{}' },
@@ -173,7 +172,20 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   });
   pgm.createIndex('devices', 'tenant_id');
   pgm.createIndex('devices', 'claimed_by_id');
-  pgm.createIndex('devices', 'campaign_id');
+
+  pgm.createTable('device_display_campaigns', {
+    id: { type: 'uuid', primaryKey: true },
+    device_id: { type: 'uuid', notNull: true, references: 'devices', onDelete: 'CASCADE' },
+    display_name: { type: 'varchar(255)', notNull: true },
+    campaign_id: { type: 'uuid', notNull: true, references: 'playlist_groups', onDelete: 'CASCADE' },
+    tenant_id: { type: 'uuid', notNull: true, references: 'tenants', onDelete: 'CASCADE' },
+    created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+    updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
+  });
+  pgm.createIndex('device_display_campaigns', ['device_id', 'display_name'], { unique: true });
+  pgm.createIndex('device_display_campaigns', 'device_id');
+  pgm.createIndex('device_display_campaigns', 'campaign_id');
+  pgm.createIndex('device_display_campaigns', 'tenant_id');
 
   pgm.createTable('device_networks', {
     id: { type: 'uuid', primaryKey: true },
@@ -261,7 +273,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 
   const rlsTables = [
     'tenants', 'tenant_members', 'devices', 'device_networks',
-    'device_registrations', 'device_auth_challenges',
+    'device_registrations', 'device_auth_challenges', 'device_display_campaigns',
     'playlist_groups', 'playlists', 'playlist_items', 'playlist_schedules',
   ];
 
@@ -284,7 +296,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 export function down(pgm: MigrationBuilder): void {
   const rlsTables = [
     'tenants', 'tenant_members', 'devices', 'device_networks',
-    'device_registrations', 'device_auth_challenges',
+    'device_registrations', 'device_auth_challenges', 'device_display_campaigns',
     'playlist_groups', 'playlists', 'playlist_items', 'playlist_schedules',
   ];
 
@@ -299,6 +311,7 @@ export function down(pgm: MigrationBuilder): void {
   pgm.dropTable('device_api_keys');
   pgm.dropTable('device_auth_challenges');
   pgm.dropTable('device_registrations');
+  pgm.dropTable('device_display_campaigns');
   pgm.dropTable('device_networks');
   pgm.dropTable('devices');
   pgm.dropTable('playlist_schedules');

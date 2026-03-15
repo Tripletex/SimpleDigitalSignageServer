@@ -43,7 +43,7 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
   const [showCampaignModal, setShowCampaignModal] = useState<boolean>(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
   const [selectedDeviceName, setSelectedDeviceName] = useState<string>('');
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
+  const [displayCampaignSelections, setDisplayCampaignSelections] = useState<Record<string, string>>({});
   const [assigningCampaign, setAssigningCampaign] = useState<boolean>(false);
   const navigate = useNavigate();
 
@@ -268,19 +268,29 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
       setSuccessMessage(null);
       return;
     }
-    
+
     // Open the campaign assignment modal
     setSelectedDeviceId(deviceId);
     setSelectedDeviceName(deviceName);
-    
-    // Look up the device's current campaign
+
     const device = deviceRegistrations.find(reg => reg.deviceData?.id === deviceId);
-    if (device && device.deviceData?.campaignId) {
-      setSelectedCampaignId(device.deviceData.campaignId);
+    const deviceDisplays = device?.deviceData?.displays ?? [];
+    const existingAssignments = device?.deviceData?.displayCampaigns ?? [];
+
+    // Build selections keyed by display name
+    const selections: Record<string, string> = {};
+    if (deviceDisplays.length > 0) {
+      for (const d of deviceDisplays) {
+        const assignment = existingAssignments.find(a => a.displayName === d.name);
+        selections[d.name] = assignment?.campaignId ?? '';
+      }
     } else {
-      setSelectedCampaignId('');
+      // Fallback: single "default" display for devices that haven't reported displays yet
+      const assignment = existingAssignments[0];
+      selections['default'] = assignment?.campaignId ?? '';
     }
-    
+
+    setDisplayCampaignSelections(selections);
     setShowCampaignModal(true);
   };
   
@@ -289,42 +299,39 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
       setError('No organization selected. Please select an organization from the dropdown.');
       return;
     }
-    
+
     if (!selectedDeviceId) {
       setError('No device selected.');
       return;
     }
-    
+
     try {
       setAssigningCampaign(true);
-      
-      // Convert empty string to null for removing assignment
-      const campaignId = selectedCampaignId || null;
-      
-      const result = await deviceService.assignCampaign(
-        currentTenant.id,
-        selectedDeviceId,
-        campaignId
-      );
-      
-      if (result.success) {
-        // Close the modal
-        setShowCampaignModal(false);
-        
-        // Show success message
-        setSuccessMessage(result.message || 'Campaign successfully assigned to device');
-        
-        // Refresh device list to show the new assignment
-        const devices = await deviceService.getTenantDevices(currentTenant.id);
-        setDeviceRegistrations(devices);
-        
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-          setSuccessMessage(null);
-        }, 3000);
-      } else {
-        setError(result.message || 'Failed to assign campaign');
+
+      // Assign campaign for each display
+      for (const [displayName, campaignId] of Object.entries(displayCampaignSelections)) {
+        await deviceService.assignDisplayCampaign(
+          currentTenant.id,
+          selectedDeviceId,
+          displayName,
+          campaignId || null,
+        );
       }
+
+      // Close the modal
+      setShowCampaignModal(false);
+
+      // Show success message
+      setSuccessMessage('Campaign assignments updated successfully');
+
+      // Refresh device list to show the new assignments
+      const devices = await deviceService.getTenantDevices(currentTenant.id);
+      setDeviceRegistrations(devices);
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
     } catch (err) {
       setError(`Error assigning campaign: ${err instanceof Error ? err.message : String(err)}`);
       console.error('Error assigning campaign:', err);
@@ -429,11 +436,8 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
                       registration.deviceData.name || 
                       (registration.deviceData.id ? registration.deviceData.id.substring(0, 8) : 'Unknown')
                     ) : 'Unknown';
-                    // Find campaign name if assigned
-                    const campaignId = registration.deviceData?.campaignId;
-                    const campaignName = campaignId 
-                      ? campaigns.find(c => c.id === campaignId)?.name || 'Unknown Campaign' 
-                      : 'None';
+                    // Build per-display campaign info
+                    const displayCampaigns = registration.deviceData?.displayCampaigns ?? [];
                     
                     return (
                       <tr key={registration.deviceData?.id || `device-${Math.random()}`}>
@@ -442,7 +446,14 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
                           <span className={`status-indicator status-${status.toLowerCase()}`}></span>
                           {status}
                         </td>
-                        <td>{campaignName}</td>
+                        <td>
+                          {displayCampaigns.length === 0
+                            ? 'None'
+                            : displayCampaigns.map((dc) => {
+                                const name = campaigns.find(c => c.id === dc.campaignId)?.name || 'Unknown';
+                                return `${dc.displayName}: ${name}`;
+                              }).join(', ')}
+                        </td>
                         <td>
                           <div title={`Exact time: ${getExactTimestamp(registration.lastSeen)}`}>
                             {formatDate(registration.lastSeen)}
@@ -608,31 +619,38 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
                 </button>
               </div>
               <div className="modal-body">
-                <p>Configure which campaign should be displayed on <strong>{selectedDeviceName}</strong>:</p>
-                
-                <div className="form-group">
-                  <label htmlFor="campaign-selection">Select Campaign:</label>
-                  <select
-                    id="campaign-selection"
-                    className="form-input"
-                    value={selectedCampaignId}
-                    onChange={(e) => setSelectedCampaignId(e.target.value)}
-                  >
-                    <option value="">No Campaign (Clear Assignment)</option>
-                    {campaigns.map(campaign => (
-                      <option key={campaign.id} value={campaign.id}>
-                        {campaign.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
+                <p>Configure which campaigns should be displayed on <strong>{selectedDeviceName}</strong>:</p>
+
+                {Object.entries(displayCampaignSelections).map(([displayName, campaignId]) => (
+                  <div className="form-group" key={displayName}>
+                    <label htmlFor={`campaign-${displayName}`}>{displayName}:</label>
+                    <select
+                      id={`campaign-${displayName}`}
+                      className="form-input"
+                      value={campaignId}
+                      onChange={(e) =>
+                        setDisplayCampaignSelections((prev) => ({
+                          ...prev,
+                          [displayName]: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">No Campaign (Clear Assignment)</option>
+                      {campaigns.map(campaign => (
+                        <option key={campaign.id} value={campaign.id}>
+                          {campaign.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+
                 {campaigns.length === 0 && (
                   <p className="notification-message">
                     No campaigns available. <a href="/campaigns">Create a campaign</a> first.
                   </p>
                 )}
-                
+
                 {error && (
                   <p className="error-message">{error}</p>
                 )}

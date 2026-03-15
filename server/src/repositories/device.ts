@@ -1,6 +1,6 @@
-import { eq, isNotNull } from 'drizzle-orm';
+import { eq, and, isNotNull } from 'drizzle-orm';
 import { db } from '../db/client.ts';
-import { devices, deviceNetworks, deviceRegistrations } from '../db/schema/index.ts';
+import { devices, deviceNetworks, deviceRegistrations, deviceDisplayCampaigns } from '../db/schema/index.ts';
 import { uuidv7 } from '../utils/helpers.ts';
 
 const deviceRepository = {
@@ -73,6 +73,7 @@ const deviceRepository = {
         registrations: true,
         tenant: true,
         claimedBy: true,
+        displayCampaigns: true,
       },
     });
   },
@@ -84,6 +85,7 @@ const deviceRepository = {
         registrations: true,
         tenant: true,
         claimedBy: true,
+        displayCampaigns: true,
       },
     });
   },
@@ -96,6 +98,7 @@ const deviceRepository = {
         registrations: true,
         tenant: true,
         claimedBy: true,
+        displayCampaigns: true,
       },
     });
   },
@@ -108,6 +111,7 @@ const deviceRepository = {
         registrations: true,
         tenant: true,
         claimedBy: true,
+        displayCampaigns: true,
       },
     });
   },
@@ -144,13 +148,16 @@ const deviceRepository = {
 
   async releaseDevice(deviceId: string) {
     return db.transaction(async (tx) => {
+      // Clear all display campaign assignments
+      await tx.delete(deviceDisplayCampaigns)
+        .where(eq(deviceDisplayCampaigns.deviceId, deviceId));
+
       const [device] = await tx.update(devices)
         .set({
           tenantId: null,
           claimedById: null,
           claimedAt: null,
           displayName: null,
-          campaignId: null,
           updatedAt: new Date(),
         })
         .where(eq(devices.id, deviceId))
@@ -167,19 +174,65 @@ const deviceRepository = {
     });
   },
 
-  async assignCampaign(deviceId: string, campaignId: string | null) {
-    const result = await db.update(devices)
-      .set({ campaignId, updatedAt: new Date() })
-      .where(eq(devices.id, deviceId))
+  async assignDisplayCampaign(
+    deviceId: string,
+    displayName: string,
+    campaignId: string | null,
+    tenantId: string,
+  ) {
+    if (campaignId === null) {
+      // Remove assignment for this display
+      await db.delete(deviceDisplayCampaigns)
+        .where(and(
+          eq(deviceDisplayCampaigns.deviceId, deviceId),
+          eq(deviceDisplayCampaigns.displayName, displayName),
+        ));
+      return null;
+    }
+
+    // Upsert: try update first, then insert
+    const existing = await db.query.deviceDisplayCampaigns.findFirst({
+      where: and(
+        eq(deviceDisplayCampaigns.deviceId, deviceId),
+        eq(deviceDisplayCampaigns.displayName, displayName),
+      ),
+    });
+
+    if (existing) {
+      const [updated] = await db.update(deviceDisplayCampaigns)
+        .set({ campaignId, updatedAt: new Date() })
+        .where(eq(deviceDisplayCampaigns.id, existing.id))
+        .returning();
+      return updated;
+    }
+
+    const [created] = await db.insert(deviceDisplayCampaigns)
+      .values({
+        id: uuidv7(),
+        deviceId,
+        displayName,
+        campaignId,
+        tenantId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
       .returning();
-    return result[0];
+    return created;
+  },
+
+  async getDisplayCampaigns(deviceId: string) {
+    return db.query.deviceDisplayCampaigns.findMany({
+      where: eq(deviceDisplayCampaigns.deviceId, deviceId),
+      with: {
+        campaign: true,
+      },
+    });
   },
 
   async saveDevice(id: string, data: Partial<{
     name: string;
     displayName: string;
     tenantId: string;
-    campaignId: string;
   }>) {
     const result = await db.update(devices)
       .set({ ...data, updatedAt: new Date() })

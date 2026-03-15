@@ -38,8 +38,17 @@ const deviceService = {
     return deviceRepository.releaseDevice(deviceId);
   },
 
-  async assignCampaign(deviceId: string, campaignId: string) {
-    return deviceRepository.assignCampaign(deviceId, campaignId);
+  async assignDisplayCampaign(
+    deviceId: string,
+    displayName: string,
+    campaignId: string | null,
+    tenantId: string,
+  ) {
+    return deviceRepository.assignDisplayCampaign(deviceId, displayName, campaignId, tenantId);
+  },
+
+  async getDisplayCampaigns(deviceId: string) {
+    return deviceRepository.getDisplayCampaigns(deviceId);
   },
 };
 

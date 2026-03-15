@@ -8,6 +8,7 @@ export type {
   DeviceClaimRequest,
   DeviceClaimResponse,
   Network,
+  DisplayCampaign,
   CampaignAssignmentResponse
 } from './deviceApiService';
 
@@ -17,5 +18,5 @@ export {
   claimDevice,
   releaseDevice,
   getDeviceById,
-  assignCampaign
+  assignDisplayCampaign
 } from './deviceApiService';

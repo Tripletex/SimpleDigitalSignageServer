@@ -1,8 +1,7 @@
-import { pgTable, uuid, varchar, text, timestamp, boolean, integer, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, boolean, integer, jsonb, uniqueIndex } from 'drizzle-orm/pg-core';
 import { users } from './users.ts';
 import { tenants } from './tenants.ts';
 
-// Forward reference - playlistGroups will be imported in relations
 export const devices = pgTable('devices', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 255 }).notNull(),
@@ -12,10 +11,21 @@ export const devices = pgTable('devices', {
   displayName: varchar('display_name', { length: 255 }),
   displayCount: integer('display_count').notNull().default(0),
   displays: jsonb('displays').$type<Array<{ name: string; connected: boolean; primary: boolean; resolution?: string }>>(),
-  campaignId: uuid('campaign_id'),  // FK added in relations (circular dep with playlistGroups)
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const deviceDisplayCampaigns = pgTable('device_display_campaigns', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  deviceId: uuid('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
+  displayName: varchar('display_name', { length: 255 }).notNull(),
+  campaignId: uuid('campaign_id').notNull(),  // FK to playlist_groups, added in relations
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('device_display_campaigns_device_display_idx').on(table.deviceId, table.displayName),
+]);
 
 export const deviceNetworks = pgTable('device_networks', {
   id: uuid('id').primaryKey().defaultRandom(),

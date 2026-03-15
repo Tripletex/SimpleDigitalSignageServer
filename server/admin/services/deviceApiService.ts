@@ -9,15 +9,22 @@ export type Network = {
   ipAddress: string[];
 }
 
+export type DisplayCampaign = {
+  displayName: string;
+  campaignId: string;
+}
+
 export type DeviceData = {
   id: string;
   name: string;
   networks: Network[];
-  tenantId?: string; 
-  claimedBy?: string; 
+  tenantId?: string;
+  claimedBy?: string;
   claimedAt?: Date;
   displayName?: string;
-  campaignId?: string;
+  displayCount?: number;
+  displays?: Array<{ name: string; connected: boolean; primary: boolean; resolution?: string }>;
+  displayCampaigns?: DisplayCampaign[];
 }
 
 export type DeviceRegistration = {
@@ -150,30 +157,29 @@ export const getDeviceById = async (id: string): Promise<DeviceRegistration> => 
 };
 
 /**
- * Assign a campaign to a device
+ * Assign a campaign to a specific display on a device
  */
-export const assignCampaign = async (
+export const assignDisplayCampaign = async (
   tenantId: string,
   deviceId: string,
+  displayName: string,
   campaignId: string | null
 ): Promise<CampaignAssignmentResponse> => {
-  const assignRequest = {
-    deviceId,
-    campaignId
-  };
-  
-  const response = await csrfFetch(`/api/device/tenant/${tenantId}/devices/${deviceId}/campaign`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  const response = await csrfFetch(
+    `/api/device/tenant/${tenantId}/devices/${deviceId}/displays/${encodeURIComponent(displayName)}/campaign`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ campaignId }),
     },
-    body: JSON.stringify(assignRequest),
-  });
-  
+  );
+
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.message || `Failed to assign campaign to device: ${response.status}`);
+    throw new Error(data.message || `Failed to assign campaign to display: ${response.status}`);
   }
-  
+
   return data;
 };

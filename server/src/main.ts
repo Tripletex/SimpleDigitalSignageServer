@@ -106,7 +106,8 @@ app.get('/api/device/ws', async (c) => {
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw);
 
   socket.onopen = () => {
-    wsManager.addConnection(device.id, device.tenantId ?? null, device.campaignId ?? null, socket);
+    const campaignIds = (device.displayCampaigns ?? []).map((dc) => dc.campaignId);
+    wsManager.addConnection(device.id, device.tenantId ?? null, campaignIds, socket);
   };
 
   return response;

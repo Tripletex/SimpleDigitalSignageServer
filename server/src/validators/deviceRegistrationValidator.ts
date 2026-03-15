@@ -12,6 +12,5 @@ export const deviceClaimSchema = z.object({
 });
 
 export const deviceCampaignAssignmentSchema = z.object({
-  deviceId: z.string().uuid('Valid device ID required'),
   campaignId: z.string().uuid().nullable(),
 });

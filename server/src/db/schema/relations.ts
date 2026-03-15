@@ -1,7 +1,7 @@
 import { relations } from 'drizzle-orm';
 import { users, authenticators, emailVerifications } from './users.ts';
 import { tenants, tenantMembers, pendingInvitations } from './tenants.ts';
-import { devices, deviceNetworks, deviceRegistrations, deviceAuthChallenges, deviceApiKeys } from './devices.ts';
+import { devices, deviceNetworks, deviceRegistrations, deviceAuthChallenges, deviceApiKeys, deviceDisplayCampaigns } from './devices.ts';
 import { playlists, playlistItems, playlistGroups, playlistSchedules } from './playlists.ts';
 
 // Users relations
@@ -64,12 +64,25 @@ export const devicesRelations = relations(devices, ({ one, many }) => ({
     fields: [devices.claimedById],
     references: [users.id],
   }),
-  campaign: one(playlistGroups, {
-    fields: [devices.campaignId],
-    references: [playlistGroups.id],
-  }),
   networks: many(deviceNetworks),
   registrations: many(deviceRegistrations),
+  displayCampaigns: many(deviceDisplayCampaigns),
+}));
+
+// DeviceDisplayCampaigns relations
+export const deviceDisplayCampaignsRelations = relations(deviceDisplayCampaigns, ({ one }) => ({
+  device: one(devices, {
+    fields: [deviceDisplayCampaigns.deviceId],
+    references: [devices.id],
+  }),
+  campaign: one(playlistGroups, {
+    fields: [deviceDisplayCampaigns.campaignId],
+    references: [playlistGroups.id],
+  }),
+  tenant: one(tenants, {
+    fields: [deviceDisplayCampaigns.tenantId],
+    references: [tenants.id],
+  }),
 }));
 
 // DeviceNetworks relations

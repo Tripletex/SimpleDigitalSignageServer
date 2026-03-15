@@ -122,9 +122,12 @@ export async function getAllDevices(c: Context<AppEnv>): Promise<Response> {
         name: d.name,
         displayName: d.displayName,
         tenantId: d.tenantId,
-        campaignId: d.campaignId,
         displayCount: d.displayCount,
         displays: d.displays,
+        displayCampaigns: (d.displayCampaigns ?? []).map((dc) => ({
+          displayName: dc.displayName,
+          campaignId: dc.campaignId,
+        })),
       },
       lastSeen: registration?.lastSeen || new Date(),
       registrationTime: registration?.registrationTime || new Date(),
@@ -158,9 +161,12 @@ export async function getDeviceById(c: Context<AppEnv>): Promise<Response> {
       name: device.name,
       displayName: device.displayName,
       tenantId: device.tenantId,
-      campaignId: device.campaignId,
       displayCount: device.displayCount,
       displays: device.displays,
+      displayCampaigns: (device.displayCampaigns ?? []).map((dc) => ({
+        displayName: dc.displayName,
+        campaignId: dc.campaignId,
+      })),
     },
     lastSeen: registration?.lastSeen || new Date(),
     registrationTime: registration?.registrationTime || new Date(),
@@ -201,9 +207,12 @@ export async function getTenantDevices(c: Context<AppEnv>): Promise<Response> {
         name: d.name,
         displayName: d.displayName,
         tenantId: d.tenantId,
-        campaignId: d.campaignId,
         displayCount: d.displayCount,
         displays: d.displays,
+        displayCampaigns: (d.displayCampaigns ?? []).map((dc) => ({
+          displayName: dc.displayName,
+          campaignId: dc.campaignId,
+        })),
       },
       lastSeen: registration?.lastSeen || new Date(),
       registrationTime: registration?.registrationTime || new Date(),
@@ -283,7 +292,7 @@ export async function releaseDevice(c: Context<AppEnv>): Promise<Response> {
 
   if (result) {
     try {
-      wsManager.updateDeviceCampaign(deviceId, null);
+      wsManager.updateDeviceCampaigns(deviceId, []);
       wsManager.notifyDevice(deviceId, { type: 'device_released', timestamp: new Date().toISOString() });
     } catch { /* ignore */ }
     return c.json({ success: true, message: 'Device released successfully' });
@@ -293,9 +302,9 @@ export async function releaseDevice(c: Context<AppEnv>): Promise<Response> {
 }
 
 /**
- * Assign a campaign to a device
+ * Assign a campaign to a specific display on a device
  */
-export async function assignCampaign(c: Context<AppEnv>): Promise<Response> {
+export async function assignDisplayCampaign(c: Context<AppEnv>): Promise<Response> {
   const user = c.get('user');
   if (!user) {
     return c.json({ success: false, message: 'Authentication required' }, 401);
@@ -303,15 +312,9 @@ export async function assignCampaign(c: Context<AppEnv>): Promise<Response> {
 
   const tenantId = c.req.param('tenantId');
   const deviceId = c.req.param('deviceId');
+  const displayName = decodeURIComponent(c.req.param('displayName'));
   const body = c.get('sanitizedBody') || await c.req.json();
   const assignmentData = deviceCampaignAssignmentSchema.parse(body);
-
-  if (deviceId !== assignmentData.deviceId) {
-    return c.json({
-      success: false,
-      message: 'Device ID in path does not match device ID in request body',
-    }, 400);
-  }
 
   // Verify device belongs to this tenant
   const device = await deviceRepository.getDeviceById(deviceId);
@@ -319,46 +322,27 @@ export async function assignCampaign(c: Context<AppEnv>): Promise<Response> {
     return c.json({ success: false, message: 'Device not found in this tenant' }, 404);
   }
 
-  const result = await deviceRepository.assignCampaign(
+  const result = await deviceRepository.assignDisplayCampaign(
     deviceId,
-    assignmentData.campaignId ?? null,
+    displayName,
+    assignmentData.campaignId,
+    tenantId,
   );
 
-  if (result) {
-    try {
-      wsManager.updateDeviceCampaign(deviceId, assignmentData.campaignId ?? null);
-      wsManager.notifyDevice(deviceId, { type: 'campaign_changed', timestamp: new Date().toISOString() });
-    } catch { /* ignore */ }
-    return c.json({ success: true, device: result });
-  }
+  try {
+    wsManager.updateDeviceCampaigns(deviceId, device.displayCampaigns ?? []);
+    wsManager.notifyDevice(deviceId, { type: 'campaign_changed', timestamp: new Date().toISOString() });
+  } catch { /* ignore */ }
 
-  return c.json({ success: false, message: 'Failed to assign campaign' }, 400);
+  return c.json({ success: true, result });
 }
 
 /**
- * Get the assigned campaign content for a device
+ * Resolve a campaign (playlist group) to its full content with schedules.
  */
-export async function getDeviceContent(c: Context<AppEnv>): Promise<Response> {
-  const device = c.get('device');
-  const fullDevice = await deviceRepository.getDeviceById(device.id);
-
-  if (!fullDevice) {
-    return c.json({ success: false, message: 'Device not found' }, 404);
-  }
-
-  if (!fullDevice.tenantId) {
-    return c.json({ success: false, message: 'Device not claimed' }, 404);
-  }
-
-  if (!fullDevice.campaignId) {
-    return c.json({ success: false, message: 'No campaign assigned' }, 404);
-  }
-
-  const playlistGroup = await playlistGroupRepository.getPlaylistGroupById(fullDevice.campaignId);
-
-  if (!playlistGroup) {
-    return c.json({ success: false, message: 'Campaign not found' }, 404);
-  }
+async function resolveCampaign(campaignId: string) {
+  const playlistGroup = await playlistGroupRepository.getPlaylistGroupById(campaignId);
+  if (!playlistGroup) return null;
 
   const schedules = await Promise.all(
     (playlistGroup.schedules ?? []).map(async (schedule) => {
@@ -385,12 +369,50 @@ export async function getDeviceContent(c: Context<AppEnv>): Promise<Response> {
     }),
   );
 
-  return c.json({
-    success: true,
-    campaign: {
-      id: playlistGroup.id,
-      name: playlistGroup.name,
-      schedules,
-    },
-  });
+  return {
+    id: playlistGroup.id,
+    name: playlistGroup.name,
+    schedules,
+  };
+}
+
+/**
+ * Get the assigned campaign content for a device — returns per-display data.
+ */
+export async function getDeviceContent(c: Context<AppEnv>): Promise<Response> {
+  const device = c.get('device');
+  const fullDevice = await deviceRepository.getDeviceById(device.id);
+
+  if (!fullDevice) {
+    return c.json({ success: false, message: 'Device not found' }, 404);
+  }
+
+  if (!fullDevice.tenantId) {
+    return c.json({ success: false, message: 'Device not claimed' }, 404);
+  }
+
+  const displayCampaigns = fullDevice.displayCampaigns ?? [];
+
+  if (displayCampaigns.length === 0) {
+    return c.json({ success: true, displays: {} });
+  }
+
+  // Resolve all unique campaigns
+  const uniqueCampaignIds = [...new Set(displayCampaigns.map((dc) => dc.campaignId))];
+  const resolvedCampaigns = new Map<string, Awaited<ReturnType<typeof resolveCampaign>>>();
+  await Promise.all(
+    uniqueCampaignIds.map(async (id) => {
+      resolvedCampaigns.set(id, await resolveCampaign(id));
+    }),
+  );
+
+  // Build per-display response
+  const displays: Record<string, { campaign: Awaited<ReturnType<typeof resolveCampaign>> }> = {};
+  for (const dc of displayCampaigns) {
+    displays[dc.displayName] = {
+      campaign: resolvedCampaigns.get(dc.campaignId) ?? null,
+    };
+  }
+
+  return c.json({ success: true, displays });
 }
