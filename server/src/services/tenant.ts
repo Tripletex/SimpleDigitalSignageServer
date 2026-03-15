@@ -4,7 +4,7 @@ import { cacheManager } from '../middleware/tenantAuthorization.ts';
 const tenantService = {
   async createTenant(data: {
     name: string;
-    ownerId: string;
+    userId: string;
     isPersonal?: boolean;
   }) {
     return tenantRepository.createTenant(data);

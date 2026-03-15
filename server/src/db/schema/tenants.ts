@@ -6,7 +6,6 @@ export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 255 }).notNull(),
   isPersonal: boolean('is_personal').notNull().default(false),
-  ownerId: uuid('owner_id').notNull().references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

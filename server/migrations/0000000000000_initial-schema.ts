@@ -67,7 +67,6 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     id: { type: 'uuid', primaryKey: true },
     name: { type: 'varchar(255)', notNull: true },
     is_personal: { type: 'boolean', notNull: true, default: false },
-    owner_id: { type: 'uuid', notNull: true, references: 'users', onDelete: 'CASCADE' },
     created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
     updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },
   });

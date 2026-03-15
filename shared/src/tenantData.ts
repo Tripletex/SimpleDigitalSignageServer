@@ -15,7 +15,6 @@ export interface Tenant {
   name: string;
   isPersonal: boolean;
   createdAt: Date;
-  ownerId: string; // User ID who created/owns the tenant
 }
 
 export interface TenantMember {

@@ -19,11 +19,7 @@ export const authenticatorsRelations = relations(authenticators, ({ one }) => ({
 }));
 
 // Tenants relations
-export const tenantsRelations = relations(tenants, ({ one, many }) => ({
-  owner: one(users, {
-    fields: [tenants.ownerId],
-    references: [users.id],
-  }),
+export const tenantsRelations = relations(tenants, ({ many }) => ({
   tenantMembers: many(tenantMembers),
   devices: many(devices),
   pendingInvitations: many(pendingInvitations),

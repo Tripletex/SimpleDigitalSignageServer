@@ -16,7 +16,6 @@ import {
 import tenantService from '../services/tenant.ts';
 import tenantRepository from '../repositories/tenant.ts';
 import userService from '../services/user.ts';
-import emailVerificationService from '../services/emailVerification.ts';
 
 /**
  * Get all tenants for the current user
@@ -44,7 +43,7 @@ export async function getUserTenants(c: Context<AppEnv>): Promise<Response> {
   const memberships = await tenantService.getUserTenants(user.id);
   const tenants = memberships.map((m) => ({
     ...m.tenant,
-    role: m.role,
+    userRole: m.role,
     status: m.status,
   }));
 
@@ -74,6 +73,7 @@ export async function getTenantDetails(c: Context<AppEnv>): Promise<Response> {
   }
 
   const rawMembers = await tenantRepository.getTenantMembers(id);
+  const pendingInvitations = await tenantRepository.getPendingInvitationsByTenant(id);
 
   // Flatten the nested user relation into a flat member object
   const members = rawMembers.map((m) => ({
@@ -85,10 +85,27 @@ export async function getTenantDetails(c: Context<AppEnv>): Promise<Response> {
     joinedAt: m.joinedAt,
   }));
 
+  // Include pending invitations (non-existing users) in the members list
+  for (const inv of pendingInvitations) {
+    members.push({
+      userId: '',
+      email: inv.email,
+      displayName: '',
+      role: inv.role,
+      status: 'pending',
+      joinedAt: inv.createdAt,
+    });
+  }
+
+  // Find the current user's role in this tenant
+  const currentMember = rawMembers.find((m) => m.userId === user.id);
+  const userRole = currentMember?.role ?? 'member';
+
   return c.json({
     success: true,
     tenant: {
       ...tenant,
+      userRole,
       members,
     },
   });
@@ -108,7 +125,7 @@ export async function createTenant(c: Context<AppEnv>): Promise<Response> {
 
   const tenant = await tenantService.createTenant({
     name: data.name,
-    ownerId: user.id,
+    userId: user.id,
   });
 
   return c.json({
@@ -143,7 +160,7 @@ export async function updateTenant(c: Context<AppEnv>): Promise<Response> {
 }
 
 /**
- * Delete a tenant
+ * Delete a tenant (owner only, must have no other members)
  */
 export async function deleteTenant(c: Context<AppEnv>): Promise<Response> {
   const user = c.get('user');
@@ -153,21 +170,32 @@ export async function deleteTenant(c: Context<AppEnv>): Promise<Response> {
 
   const id = c.req.param('id');
 
-  // Check ownership
   const tenant = await tenantRepository.getTenantById(id);
   if (!tenant) {
     return c.json({ success: false, message: 'Tenant not found' }, 404);
   }
 
-  if (tenant.ownerId !== user.id) {
-    return c.json({ success: false, message: 'Only the owner can delete this tenant' }, 403);
+  // Verify the user is an owner (defense-in-depth, route already checks)
+  const membership = await tenantRepository.getTenantMember(id, user.id);
+  if (!membership || membership.role !== 'owner') {
+    return c.json({ success: false, message: 'Only owners can delete this organization' }, 403);
+  }
+
+  // Only allow deletion if no other members remain
+  const members = await tenantRepository.getTenantMembers(id);
+  const otherMembers = members.filter((m) => m.userId !== user.id);
+  if (otherMembers.length > 0) {
+    return c.json({
+      success: false,
+      message: 'Cannot delete organization with active members. Remove all members first.',
+    }, 400);
   }
 
   await tenantRepository.deleteTenant(id);
 
   return c.json({
     success: true,
-    message: 'Tenant deleted successfully',
+    message: 'Organization deleted successfully',
   });
 }
 
@@ -188,6 +216,12 @@ export async function inviteUser(c: Context<AppEnv>): Promise<Response> {
   const tenant = await tenantRepository.getTenantById(id);
   if (!tenant) {
     return c.json({ success: false, message: 'Tenant not found' }, 404);
+  }
+
+  // Admins cannot invite as owner
+  const actingMember = await tenantRepository.getTenantMember(id, user.id);
+  if (actingMember?.role !== 'owner' && inviteData.role === 'owner') {
+    return c.json({ success: false, message: 'Only owners can invite as owner' }, 403);
   }
 
   // Check if user is already a member
@@ -216,40 +250,20 @@ export async function inviteUser(c: Context<AppEnv>): Promise<Response> {
     });
   }
 
-  // Create email verification with invitation info
-  const token = await emailVerificationService.createEmailVerification(
-    inviteData.email,
-    false,
-    id,
-    inviteData.role,
-  );
+  // Create pending invitation — user will be added to the org when they sign up normally
+  await tenantRepository.createPendingInvitation({
+    tenantId: id,
+    email: inviteData.email,
+    role: inviteData.role,
+    invitedById: user.id,
+  });
 
-  const requestOrigin = c.req.header('origin') || c.req.header('referer')?.replace(/\/[^/]*$/, '') || `http://localhost:${env.PORT}`;
-  const verificationLink = `${requestOrigin}/verify-email/${token}`;
-
-  if (env.isProd) {
-    console.log(`[PRODUCTION] Would send invitation email to ${inviteData.email} with link: ${verificationLink}`);
-    return c.json({
-      success: true,
-      message: `Invitation sent to ${inviteData.email}`,
-    });
-  }
-
-  // Development mode
-  console.log(`\n===== DEVELOPMENT MODE =====`);
-  console.log(`Invitation link for ${inviteData.email} to join "${tenant.name}":`);
-  console.log(`${verificationLink}`);
-  console.log(`=============================\n`);
+  // TODO: Send invitation email notifying the user they've been invited
+  console.log(`Invitation created for ${inviteData.email} to join "${tenant.name}" as ${inviteData.role}`);
 
   return c.json({
     success: true,
-    message: `Invitation sent to ${inviteData.email} (see console log for details)`,
-    dev: {
-      note: 'These fields are only included in development mode',
-      verificationLink,
-      token,
-      directApiVerify: `/api/auth/verify-email/${token}`,
-    },
+    message: `Invitation sent to ${inviteData.email}`,
   });
 }
 
@@ -266,6 +280,24 @@ export async function updateMemberRole(c: Context<AppEnv>): Promise<Response> {
   const userId = c.req.param('userId');
   const body = c.get('sanitizedBody') || await c.req.json();
   const { role } = tenantMemberUpdateSchema.parse(body);
+
+  // Check acting user's role
+  const actingMember = await tenantRepository.getTenantMember(id, user.id);
+  const targetMember = await tenantRepository.getTenantMember(id, userId);
+
+  if (!actingMember || !targetMember) {
+    return c.json({ success: false, message: 'Member not found' }, 404);
+  }
+
+  // Admins cannot promote/demote owners or set role to owner
+  if (actingMember.role !== 'owner') {
+    if (targetMember.role === 'owner') {
+      return c.json({ success: false, message: 'Only owners can modify other owners' }, 403);
+    }
+    if (role === 'owner') {
+      return c.json({ success: false, message: 'Only owners can promote to owner' }, 403);
+    }
+  }
 
   await tenantService.updateTenantMemberRole(id, userId, role);
 
@@ -286,6 +318,19 @@ export async function removeMember(c: Context<AppEnv>): Promise<Response> {
 
   const id = c.req.param('id');
   const userId = c.req.param('userId');
+
+  // Check acting user's role and target's role
+  const actingMember = await tenantRepository.getTenantMember(id, user.id);
+  const targetMember = await tenantRepository.getTenantMember(id, userId);
+
+  if (!actingMember || !targetMember) {
+    return c.json({ success: false, message: 'Member not found' }, 404);
+  }
+
+  // Admins cannot remove owners
+  if (actingMember.role !== 'owner' && targetMember.role === 'owner') {
+    return c.json({ success: false, message: 'Only owners can remove other owners' }, 403);
+  }
 
   await tenantService.removeTenantMember(id, userId);
 

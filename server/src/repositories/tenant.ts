@@ -10,14 +10,13 @@ import { uuidv7 } from '../utils/helpers.ts';
 const tenantRepository = {
   async createTenant(data: {
     name: string;
-    ownerId: string;
+    userId: string;
     isPersonal?: boolean;
   }) {
     return db.transaction(async (tx) => {
       const [tenant] = await tx.insert(tenants).values({
         id: uuidv7(),
         name: data.name,
-        ownerId: data.ownerId,
         isPersonal: data.isPersonal ?? false,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -26,7 +25,7 @@ const tenantRepository = {
       await tx.insert(tenantMembers).values({
         id: uuidv7(),
         tenantId: tenant.id,
-        userId: data.ownerId,
+        userId: data.userId,
         role: 'owner',
         status: 'active',
         joinedAt: new Date(),
@@ -40,15 +39,6 @@ const tenantRepository = {
   async getTenantById(id: string) {
     return db.query.tenants.findFirst({
       where: eq(tenants.id, id),
-      with: {
-        owner: true,
-      },
-    });
-  },
-
-  async getTenantsByOwnerId(ownerId: string) {
-    return db.query.tenants.findMany({
-      where: eq(tenants.ownerId, ownerId),
     });
   },
 
@@ -102,11 +92,7 @@ const tenantRepository = {
     return db.query.tenantMembers.findMany({
       where: eq(tenantMembers.userId, userId),
       with: {
-        tenant: {
-          with: {
-            owner: true,
-          },
-        },
+        tenant: true,
       },
     });
   },
@@ -165,20 +151,24 @@ const tenantRepository = {
   },
 
   async createPersonalTenantIfNeeded(userId: string, email: string) {
-    const existing = await db.query.tenants.findFirst({
+    // Find personal tenant where user is an owner member
+    const ownerMembership = await db.query.tenantMembers.findFirst({
       where: and(
-        eq(tenants.ownerId, userId),
-        eq(tenants.isPersonal, true),
+        eq(tenantMembers.userId, userId),
+        eq(tenantMembers.role, 'owner'),
       ),
+      with: {
+        tenant: true,
+      },
     });
 
-    if (existing) {
-      return existing;
+    if (ownerMembership?.tenant?.isPersonal) {
+      return ownerMembership.tenant;
     }
 
     return tenantRepository.createTenant({
       name: `${email}'s Workspace`,
-      ownerId: userId,
+      userId,
       isPersonal: true,
     });
   },
@@ -211,6 +201,15 @@ const tenantRepository = {
       updatedAt: new Date(),
     }).returning();
     return result[0];
+  },
+
+  async getPendingInvitationsByTenant(tenantId: string) {
+    return db.query.pendingInvitations.findMany({
+      where: and(
+        eq(pendingInvitations.tenantId, tenantId),
+        gt(pendingInvitations.expiresAt, new Date()),
+      ),
+    });
   },
 
   async getPendingInvitationsByEmail(email: string) {
