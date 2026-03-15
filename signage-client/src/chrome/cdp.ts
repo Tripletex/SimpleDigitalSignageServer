@@ -1,7 +1,16 @@
+export interface CdpCookie {
+  name: string;
+  value: string;
+  domain?: string;
+  path?: string;
+}
+
 export interface CdpClient {
   navigate(url: string): Promise<void>;
   reload(): Promise<void>;
   evaluate(expression: string, timeoutMs?: number): Promise<unknown>;
+  setCookies(cookies: CdpCookie[]): Promise<void>;
+  setExtraHeaders(headers: Record<string, string> | null): Promise<void>;
   close(): void;
   onCrash(handler: () => void): void;
   onDisconnect(handler: () => void): void;
@@ -85,8 +94,11 @@ export async function connectCdp(port: number): Promise<CdpClient> {
     });
   }
 
-  // Enable crash detection
+  // Enable crash detection and network domain
   await send('Inspector.enable');
+  await send('Network.enable');
+
+  let headersActive = false;
 
   return {
     get connected() {
@@ -99,6 +111,27 @@ export async function connectCdp(port: number): Promise<CdpClient> {
 
     async reload(): Promise<void> {
       await send('Page.reload');
+    },
+
+    async setCookies(cookies: CdpCookie[]): Promise<void> {
+      for (const cookie of cookies) {
+        await send('Network.setCookie', {
+          name: cookie.name,
+          value: cookie.value,
+          domain: cookie.domain,
+          path: cookie.path || '/',
+        });
+      }
+    },
+
+    async setExtraHeaders(headers: Record<string, string> | null): Promise<void> {
+      if (headers && Object.keys(headers).length > 0) {
+        await send('Network.setExtraHTTPHeaders', { headers });
+        headersActive = true;
+      } else if (headersActive) {
+        await send('Network.setExtraHTTPHeaders', { headers: {} });
+        headersActive = false;
+      }
     },
 
     async evaluate(expression: string, timeoutMs = 5000): Promise<unknown> {

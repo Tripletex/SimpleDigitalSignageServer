@@ -1,3 +1,10 @@
+export interface CookieEntry {
+  name: string;
+  value: string;
+  domain?: string;
+  path?: string;
+}
+
 export interface PlaylistItem {
   id: string;
   type: string; // 'url', 'sleep', 'image', 'youtube'
@@ -8,6 +15,8 @@ export interface PlaylistItem {
     loopCount?: number;
     fit?: string;     // 'contain' | 'cover' | 'fill'
     bgColor?: string; // CSS color for background
+    cookies?: CookieEntry[];
+    headers?: Record<string, string>;
   };
   duration: number; // seconds (0 = video determines duration)
   position: number;

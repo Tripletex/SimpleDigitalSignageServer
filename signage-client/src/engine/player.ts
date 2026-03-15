@@ -147,6 +147,9 @@ export class Player {
       return;
     }
 
+    // Set cookies and headers before navigating
+    await this.applyBrowserConfig(item);
+
     const itemType = item.type.toLowerCase();
 
     if (itemType === 'sleep') {
@@ -166,6 +169,35 @@ export class Player {
       console.log(`[PLAYER] Navigate to: ${item.data.location} (${item.duration}s)`);
       this.display.on();
       await this.navigateTo(item.data.location);
+    }
+  }
+
+  private async applyBrowserConfig(item: PlaylistItem): Promise<void> {
+    try {
+      // Set cookies (these persist in Chrome, so duplicates are harmless)
+      if (item.data?.cookies?.length) {
+        // If no domain specified, derive from the URL
+        const url = item.data.location;
+        let defaultDomain: string | undefined;
+        try {
+          defaultDomain = new URL(url).hostname;
+        } catch { /* ignore */ }
+
+        const cookies = item.data.cookies.map((c) => ({
+          ...c,
+          domain: c.domain || defaultDomain,
+        }));
+        await this.cdp.setCookies(cookies);
+        console.log(`[PLAYER] Set ${cookies.length} cookie(s) for ${defaultDomain || 'unknown'}`);
+      }
+
+      // Set extra headers (replaced per item, cleared if none)
+      await this.cdp.setExtraHeaders(item.data?.headers || null);
+      if (item.data?.headers && Object.keys(item.data.headers).length > 0) {
+        console.log(`[PLAYER] Set ${Object.keys(item.data.headers).length} extra header(s)`);
+      }
+    } catch (error) {
+      console.warn('[PLAYER] Failed to apply browser config:', error instanceof Error ? error.message : error);
     }
   }
 
