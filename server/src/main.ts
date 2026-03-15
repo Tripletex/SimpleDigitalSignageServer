@@ -277,8 +277,12 @@ await initializeDatabase();
 
 wsManager.start();
 
-console.log(`Server starting on port ${env.PORT}`);
-Deno.serve({ port: env.PORT }, app.fetch);
+Deno.serve({
+  port: env.PORT,
+  onListen({ port }) {
+    console.log(`Server listening on http://localhost:${port}/`);
+  },
+}, app.fetch);
 
 // Graceful shutdown
 Deno.addSignalListener('SIGINT', () => {

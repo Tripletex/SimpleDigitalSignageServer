@@ -7,6 +7,8 @@ export default defineConfig({
   publicDir: 'public',
   build: {
     outDir: 'dist',
+    minify: false,
+    sourcemap: true,
   },
   server: {
     port: 3000,
