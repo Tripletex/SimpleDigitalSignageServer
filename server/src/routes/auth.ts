@@ -12,6 +12,7 @@ app.post('/register', isAuthenticated, isAdmin, handleErrors(authController.regi
 app.post('/self-register', rateLimit({ windowMs: 60 * 60 * 1000, max: 5 }), handleErrors(authController.selfRegister));
 app.get('/verify-email/:token', rateLimit({ windowMs: 15 * 60 * 1000, max: 10 }), handleErrors(authController.verifyEmailToken));
 app.post('/complete-registration', handleErrors(authController.completeRegistration));
+app.post('/webauthn/register-new', rateLimit({ windowMs: 15 * 60 * 1000, max: 10 }), handleErrors(authController.verifyNewRegistration));
 app.get('/webauthn/registration-options', isAuthenticated, handleErrors(authController.getRegistrationOptions));
 app.post('/webauthn/register', isAuthenticated, handleErrors(authController.verifyRegistration));
 app.post('/webauthn/authentication-options', rateLimit({ windowMs: 15 * 60 * 1000, max: 10 }), handleErrors(authController.getAuthenticationOptions));

@@ -17,6 +17,10 @@ export interface SessionData {
     role?: string;
     displayName?: string;
   };
+  // Pending registration fields (user not yet created, awaiting passkey verification)
+  pendingUserId?: string;
+  pendingDisplayName?: string;
+  pendingRole?: string;
 }
 
 export interface Session extends SessionData {

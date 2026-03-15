@@ -8,12 +8,17 @@
  *    - In production: Link is sent via email (implementation required)
  * 3. User clicks the verification link, which calls /verify-email/:token
  * 4. If token is valid, user's email is stored in session as "verified"
- * 5. User completes registration with their display name via /complete-registration
- * 6. User account is created and user is logged in
- * 7. User registers a passkey for future authentication
+ * 5. User provides display name via /complete-registration
+ *    - A UUIDv7 is pre-generated and stored in session (no DB record yet)
+ *    - WebAuthn registration options are returned directly
+ * 6. User creates a passkey in the browser
+ * 7. Passkey is verified via /webauthn/register-new
+ *    - Only NOW is the user account created in the database
+ *    - Authenticator, tenant setup, and invitations are processed
+ *    - User is logged in
  *
- * This flow ensures that users verify email ownership before account creation
- * and prevents users from registering with email addresses they don't control.
+ * This passkey-first flow ensures that users can never end up with an account
+ * but no passkey (which would lock them out permanently).
  */
 
 import type { Context } from 'hono';
@@ -85,6 +90,15 @@ export async function verifyEmailToken(c: Context<AppEnv>): Promise<Response> {
 
 /**
  * Complete registration with verified email
+ *
+ * This does NOT create the user account. Instead, it:
+ * 1. Pre-generates a UUIDv7 for the future user
+ * 2. Determines the role (admin if first user)
+ * 3. Stores pending registration data in the session
+ * 4. Returns WebAuthn registration options directly
+ *
+ * The user account is only created after passkey verification succeeds
+ * (in verifyNewRegistration), preventing orphaned accounts.
  */
 export async function completeRegistration(c: Context<AppEnv>): Promise<Response> {
   const session = c.get('session');
@@ -112,24 +126,119 @@ export async function completeRegistration(c: Context<AppEnv>): Promise<Response
     }, 400);
   }
 
-  // Atomic first-user determination and user creation (CWE-362 fix)
-  // Use advisory lock to serialize concurrent first-user checks
-  const user = await db.transaction(async (tx) => {
+  // Determine role atomically (admin if first user)
+  const role = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(1)`);
     const allUsers = await tx.select().from(users);
-    const role = allUsers.length === 0 ? 'admin' : 'user';
-    return userService.createUser({ email, displayName, role });
+    return allUsers.length === 0 ? 'admin' : 'user';
   });
 
-  // Create personal tenant and process any pending invitations for this email
+  // Pre-generate a UUIDv7 for the future user
+  const { uuidv7 } = await import('../utils/helpers.ts');
+  const pendingUserId = uuidv7();
+
+  // Store pending registration in session (no user created yet)
+  session.pendingUserId = pendingUserId;
+  session.pendingDisplayName = displayName;
+  session.pendingRole = role;
+
+  // Generate WebAuthn registration options using the pending user ID
+  const options = await webauthnService.generateRegistrationOpts(
+    { id: pendingUserId, email, displayName },
+    [], // No existing authenticators for a new user
+  );
+
+  // Store challenge in session for verification
+  session.challenge = options.challenge;
+  await session.save();
+
+  console.log(`Pending registration stored for ${email} with ID ${pendingUserId} (role: ${role})`);
+
+  return c.json({
+    success: true,
+    message: 'Please create a passkey to complete registration',
+    registrationOptions: options,
+  });
+}
+
+/**
+ * Verify passkey and create user account (passkey-first registration)
+ *
+ * This is called after completeRegistration. It:
+ * 1. Verifies the WebAuthn registration response
+ * 2. Creates the user account with the pre-generated ID
+ * 3. Stores the authenticator credential
+ * 4. Sets up tenant memberships and invitations
+ * 5. Logs the user in
+ */
+export async function verifyNewRegistration(c: Context<AppEnv>): Promise<Response> {
+  const session = c.get('session');
+
+  // Verify we have pending registration data
+  const pendingUserId = session.pendingUserId;
+  const email = session.verifiedEmail;
+  const displayName = session.pendingDisplayName;
+  const role = session.pendingRole;
+  const challenge = session.challenge;
+
+  if (!pendingUserId || !email || !challenge) {
+    return c.json({
+      success: false,
+      message: 'No pending registration found. Please start the registration process again.',
+    }, 400);
+  }
+
+  // Clear challenge immediately to prevent replay
+  delete session.challenge;
+
+  const body = (c.get('sanitizedBody') || await c.req.json()) as unknown as import('@simplewebauthn/server').RegistrationResponseJSON;
+
+  // Verify the passkey registration
+  const verification = await webauthnService.verifyRegistration(body, challenge);
+
+  if (!verification.verified || !verification.registrationInfo) {
+    return c.json({
+      success: false,
+      message: 'Passkey verification failed. Please try again.',
+    }, 400);
+  }
+
+  // Passkey verified! Now create the user account with the pre-generated ID
+  console.log(`Passkey verified, creating user account for ${email} (ID: ${pendingUserId})`);
+
+  const user = await userService.createUser({
+    id: pendingUserId,
+    email,
+    displayName,
+    role: role as 'admin' | 'user',
+  });
+
+  // Store the authenticator credential
+  const credential = verification.registrationInfo.credential;
+  const authData = webauthnService.formatAuthenticatorForStorage({
+    id: credential.id,
+    publicKey: credential.publicKey,
+    counter: credential.counter,
+    transports: credential.transports,
+  });
+
+  await authenticatorRepository.createAuthenticator({
+    userId: user.id,
+    credentialId: authData.credentialId,
+    publicKey: authData.publicKey,
+    counter: authData.counter,
+    deviceType: authData.deviceType,
+    transports: authData.transports,
+  });
+
+  // Create personal tenant and process pending invitations
   await userService.processNewUserTenantSetup(user.id, user.email);
 
-  // Also handle session-based invitation (when user signed up via invite link)
+  // Handle session-based invitation (invite link)
   const invitingTenantId = session.invitingTenantId;
   const invitedRole = session.invitedRole;
 
   if (invitingTenantId && invitedRole) {
-    // Check if already added by processNewUserTenantSetup
     const existingMember = await tenantRepository.getTenantMember(invitingTenantId, user.id);
     if (!existingMember) {
       try {
@@ -146,18 +255,30 @@ export async function completeRegistration(c: Context<AppEnv>): Promise<Response
     }
   }
 
+  // Clear pending registration data
+  delete session.pendingUserId;
+  delete session.pendingDisplayName;
+  delete session.pendingRole;
+  delete session.verifiedEmail;
+  delete session.isFirstUser;
+  delete session.invitingTenantId;
+  delete session.invitedRole;
+  delete session.verificationToken;
+
   // Regenerate session to prevent session fixation
   await session.regenerate();
 
-  // Set user session for WebAuthn registration
+  // Log the user in
   session.userId = user.id;
   session.username = user.email;
   session.role = user.role;
   await session.save();
 
+  console.log(`User ${user.email} registered and logged in successfully`);
+
   return c.json({
     success: true,
-    message: 'Registration completed successfully',
+    message: 'Registration successful',
     user: {
       id: user.id,
       email: user.email,

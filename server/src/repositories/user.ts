@@ -5,12 +5,13 @@ import { uuidv7 } from '../utils/helpers.ts';
 
 const userRepository = {
   async createUser(data: {
+    id?: string;
     email: string;
     displayName?: string;
     role?: 'admin' | 'user';
   }) {
     const result = await db.insert(users).values({
-      id: uuidv7(),
+      id: data.id ?? uuidv7(),
       email: data.email,
       displayName: data.displayName,
       role: data.role ?? 'user',

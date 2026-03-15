@@ -280,7 +280,7 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated, setUser }) => {
     console.log("Using display name:", displayName || verifiedEmail.split('@')[0]);
     
     try {
-      // 1. Complete registration with display name
+      // 1. Complete registration — returns WebAuthn options directly (no user created yet)
       const completeResponse = await csrfFetch('/api/auth/complete-registration', {
         method: 'POST',
         headers: {
@@ -291,73 +291,47 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated, setUser }) => {
         }),
         credentials: 'include',
       });
-      
+
       // Handle potential network errors with retry
       if (!completeResponse.ok && (completeResponse.status === 0 || completeResponse.status >= 500) && retryCount < 3) {
         console.log(`Retrying registration completion (attempt ${retryCount + 1})...`);
         setLoading(false);
         setTimeout(() => {
           completeRegistration(e, retryCount + 1);
-        }, 1000); // Wait 1 second before retry
+        }, 1000);
         return;
       }
-      
+
       const completeText = await completeResponse.text();
       console.log("Complete registration response:", completeText);
-      
-      let userData;
+
+      let responseData;
       try {
-        userData = JSON.parse(completeText);
+        responseData = JSON.parse(completeText);
       } catch (e) {
         console.error("Failed to parse complete registration response:", e);
         throw new Error(`Invalid server response: ${completeText.substring(0, 100)}...`);
       }
-      
-      if (!completeResponse.ok) {
-        throw new Error(userData.message || 'Failed to complete registration');
+
+      if (!completeResponse.ok || !responseData.success) {
+        throw new Error(responseData.message || 'Failed to complete registration');
       }
-      
-      if (!userData.success) {
-        throw new Error(userData.message || 'Failed to complete registration');
-      }
-      
-      // 2. Get WebAuthn registration options
-      console.log("Fetching WebAuthn registration options...");
-      
-      const optionsResponse = await fetch('/api/auth/webauthn/registration-options', {
-        credentials: 'include',
-      });
-      
-      const optionsText = await optionsResponse.text();
-      console.log("WebAuthn options response:", optionsText);
-      
-      let options;
-      try {
-        options = JSON.parse(optionsText);
-      } catch (e) {
-        console.error("Failed to parse WebAuthn options response:", e);
-        throw new Error(`Invalid options response: ${optionsText.substring(0, 100)}...`);
-      }
-      
-      if (!optionsResponse.ok) {
-        throw new Error(options.message || 'Failed to get registration options');
-      }
-      
+
+      // 2. Use WebAuthn API to create passkey (options came back from complete-registration)
+      const options = responseData.registrationOptions;
       console.log('Registration options received:', options);
-      
-      // Prepare and log the options for debugging
+
       const publicKeyOptions = prepareRegistrationOptions(options);
       console.log('Prepared publicKey options:', publicKeyOptions);
-      
-      // 3. Use WebAuthn API to create credentials
+
       const credential = await navigator.credentials.create({
         publicKey: publicKeyOptions
       }) as PublicKeyCredential;
-      
+
       console.log('Credential created:', credential);
-      
-      // 4. Verify the registration (session exists after complete-registration, needs CSRF)
-      const verifyResponse = await csrfFetch('/api/auth/webauthn/register', {
+
+      // 3. Verify passkey and create account in one step
+      const verifyResponse = await csrfFetch('/api/auth/webauthn/register-new', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -365,38 +339,26 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated, setUser }) => {
         body: JSON.stringify(prepareRegistrationResponse(credential)),
         credentials: 'include',
       });
-      
-      if (!verifyResponse.ok) {
-        throw new Error('Failed to verify registration');
+
+      const verifyText = await verifyResponse.text();
+      console.log("Verify registration response:", verifyText);
+
+      let verifyResult;
+      try {
+        verifyResult = JSON.parse(verifyText);
+      } catch (e) {
+        console.error("Failed to parse verify response:", e);
+        throw new Error(`Invalid server response: ${verifyText.substring(0, 100)}...`);
       }
-      
-      const verifyResult = await verifyResponse.json();
-      
-      if (verifyResult.success) {
-        // After successful registration, fetch current user to get session
-        const userResponse = await fetch('/api/auth/me');
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          if (userData.success) {
-            // Set authenticated state and redirect to dashboard
-            setIsAuthenticated(true);
-            setUser(userData.user);
-            navigate('/dashboard');
-          } else {
-            // Fallback to login screen if getting user data fails
-            setMessage('Registration successful! You can now log in.');
-            setIsRegistering(false);
-            setVerifiedEmail(null);
-          }
-        } else {
-          // Fallback to login screen if getting user data fails
-          setMessage('Registration successful! You can now log in.');
-          setIsRegistering(false);
-          setVerifiedEmail(null);
-        }
-      } else {
-        setError(verifyResult.message || 'Registration failed');
+
+      if (!verifyResponse.ok || !verifyResult.success) {
+        throw new Error(verifyResult.message || 'Registration failed');
       }
+
+      // User account created and logged in
+      setIsAuthenticated(true);
+      setUser(verifyResult.user);
+      navigate('/dashboard');
     } catch (err) {
       console.error('Registration error:', err);
       setError(err instanceof Error ? err.message : 'Registration failed');

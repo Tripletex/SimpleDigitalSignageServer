@@ -3,6 +3,7 @@ import tenantRepository from '../repositories/tenant.ts';
 
 const userService = {
   async createUser(data: {
+    id?: string;
     email: string;
     displayName?: string;
     role?: 'admin' | 'user';
