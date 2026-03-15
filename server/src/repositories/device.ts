@@ -8,6 +8,7 @@ const deviceRepository = {
     id: string;
     name: string;
     networks: Array<{ name: string; ipAddresses: string[] }>;
+    displays?: Array<{ name: string; connected: boolean; primary: boolean; resolution?: string }>;
   }) {
     return db.transaction(async (tx) => {
       // Find or create device
@@ -24,8 +25,14 @@ const deviceRepository = {
         }).returning();
         device = created;
       } else {
+        const connectedCount = deviceData.displays?.filter((d) => d.connected).length ?? 0;
         const [updated] = await tx.update(devices)
-          .set({ name: deviceData.name, updatedAt: new Date() })
+          .set({
+            name: deviceData.name,
+            displayCount: connectedCount,
+            displays: deviceData.displays ?? null,
+            updatedAt: new Date(),
+          })
           .where(eq(devices.id, deviceData.id))
           .returning();
         device = updated;

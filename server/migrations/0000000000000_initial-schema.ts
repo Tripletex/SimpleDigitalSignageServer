@@ -162,6 +162,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     claimed_by_id: { type: 'uuid', references: 'users', onDelete: 'SET NULL' },
     claimed_at: { type: 'timestamptz' },
     display_name: { type: 'varchar(255)' },
+    display_count: { type: 'integer', notNull: true, default: 0 },
+    displays: { type: 'jsonb' },
     campaign_id: { type: 'uuid', references: 'playlist_groups', onDelete: 'SET NULL' },
     health_status: { type: 'device_health_status', notNull: true, default: 'UNKNOWN' },
     last_health_check: { type: 'timestamptz', default: null },

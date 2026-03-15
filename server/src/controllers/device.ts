@@ -92,6 +92,7 @@ export async function pingDevice(c: Context<AppEnv>): Promise<Response> {
       name: n.name,
       ipAddresses: n.ipAddress,
     })) ?? [],
+    displays: deviceData.displays,
   });
 
   return c.json(result);
@@ -122,6 +123,8 @@ export async function getAllDevices(c: Context<AppEnv>): Promise<Response> {
         displayName: d.displayName,
         tenantId: d.tenantId,
         campaignId: d.campaignId,
+        displayCount: d.displayCount,
+        displays: d.displays,
       },
       lastSeen: registration?.lastSeen || new Date(),
       registrationTime: registration?.registrationTime || new Date(),
@@ -156,6 +159,8 @@ export async function getDeviceById(c: Context<AppEnv>): Promise<Response> {
       displayName: device.displayName,
       tenantId: device.tenantId,
       campaignId: device.campaignId,
+      displayCount: device.displayCount,
+      displays: device.displays,
     },
     lastSeen: registration?.lastSeen || new Date(),
     registrationTime: registration?.registrationTime || new Date(),
@@ -197,6 +202,8 @@ export async function getTenantDevices(c: Context<AppEnv>): Promise<Response> {
         displayName: d.displayName,
         tenantId: d.tenantId,
         campaignId: d.campaignId,
+        displayCount: d.displayCount,
+        displays: d.displays,
       },
       lastSeen: registration?.lastSeen || new Date(),
       registrationTime: registration?.registrationTime || new Date(),

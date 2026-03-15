@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, boolean, integer, jsonb } from 'drizzle-orm/pg-core';
 import { users } from './users.ts';
 import { tenants } from './tenants.ts';
 
@@ -10,6 +10,8 @@ export const devices = pgTable('devices', {
   claimedById: uuid('claimed_by_id').references(() => users.id),
   claimedAt: timestamp('claimed_at', { withTimezone: true }),
   displayName: varchar('display_name', { length: 255 }),
+  displayCount: integer('display_count').notNull().default(0),
+  displays: jsonb('displays').$type<Array<{ name: string; connected: boolean; primary: boolean; resolution?: string }>>(),
   campaignId: uuid('campaign_id'),  // FK added in relations (circular dep with playlistGroups)
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
