@@ -16,5 +16,10 @@ server/.env
 # Deno lock file
 deno.lock
 
+# Provisioning (SSH keys and saved config contain secrets)
+provision_key
+provision_key.pub
+saved-config.json
+
 .claude-memory-private
 .claude/settings.local.json
