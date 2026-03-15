@@ -8,7 +8,7 @@ import type { CdpClient } from './chrome/cdp.ts';
 import { HealthMonitor } from './chrome/health.ts';
 import { ContentManager } from './engine/content.ts';
 import { Player } from './engine/player.ts';
-import { DisplayController } from './system/display.ts';
+import { DisplayController, detectDisplays } from './system/display.ts';
 import { getNetworkInterfaces } from './system/network.ts';
 import { startLocalServer, setOnVideoEnded } from './system/webserver.ts';
 import type { ClientConfig, DeviceCredentials } from './types.ts';
@@ -45,7 +45,12 @@ async function main(): Promise<void> {
   // 5. Start local web server
   startLocalServer(config.localPort);
 
-  // 6. Set up components
+  // 6. Detect connected displays
+  const displays = await detectDisplays();
+  const connectedDisplays = displays.filter((d) => d.connected);
+  console.log(`[MAIN] Displays: ${connectedDisplays.length} connected (${connectedDisplays.map((d) => d.name).join(', ') || 'none'})`);
+
+  // 7. Set up components
   const display = new DisplayController();
   const health = new HealthMonitor(cdp);
   const contentManager = new ContentManager(config, client);
@@ -100,7 +105,7 @@ async function main(): Promise<void> {
   // 10. Start heartbeat
   const heartbeatId = setInterval(async () => {
     try {
-      await client.ping(creds.deviceId, Deno.hostname(), getNetworkInterfaces());
+      await client.ping(creds.deviceId, Deno.hostname(), getNetworkInterfaces(), displays);
     } catch (error) {
       if ((error as Error & { status?: number }).status === 401) {
         await handleAuthFailure(config, client, creds, wsConnection);

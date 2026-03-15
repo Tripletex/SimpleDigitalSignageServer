@@ -1,4 +1,4 @@
-import type { ContentResponse, NetworkInterface } from '../types.ts';
+import type { ContentResponse, NetworkInterface, DisplayInfo } from '../types.ts';
 
 export class ApiClient {
   private serverUrl: string;
@@ -20,10 +20,10 @@ export class ApiClient {
     return await res.json() as ContentResponse;
   }
 
-  async ping(deviceId: string, name: string, networks: NetworkInterface[]): Promise<void> {
+  async ping(deviceId: string, name: string, networks: NetworkInterface[], displays?: DisplayInfo[]): Promise<void> {
     await this.request('/api/device/ping', {
       method: 'POST',
-      body: JSON.stringify({ id: deviceId, name, networks }),
+      body: JSON.stringify({ id: deviceId, name, networks, displays }),
     });
   }
 

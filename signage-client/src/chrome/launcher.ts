@@ -13,6 +13,12 @@ const CHROME_PATHS: Record<string, string[]> = {
     '/usr/bin/chromium-browser',
     '/snap/bin/chromium',
   ],
+  windows: [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    `${Deno.env.get('LOCALAPPDATA') || ''}\\Google\\Chrome\\Application\\chrome.exe`,
+    `${Deno.env.get('PROGRAMFILES') || ''}\\Google\\Chrome\\Application\\chrome.exe`,
+  ],
 };
 
 async function findChromeBinary(): Promise<string> {
@@ -28,13 +34,18 @@ async function findChromeBinary(): Promise<string> {
     }
   }
 
-  // Try PATH lookup
-  for (const name of ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']) {
+  // Try PATH lookup (which on Linux/macOS, where on Windows)
+  const lookupCmd = os === 'windows' ? 'where' : 'which';
+  const lookupNames = os === 'windows'
+    ? ['chrome', 'chromium']
+    : ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'];
+
+  for (const name of lookupNames) {
     try {
-      const cmd = new Deno.Command('which', { args: [name], stdout: 'piped', stderr: 'null' });
+      const cmd = new Deno.Command(lookupCmd, { args: [name], stdout: 'piped', stderr: 'null' });
       const output = await cmd.output();
       if (output.success) {
-        const path = new TextDecoder().decode(output.stdout).trim();
+        const path = new TextDecoder().decode(output.stdout).trim().split('\n')[0];
         if (path) return path;
       }
     } catch {
@@ -55,7 +66,10 @@ export async function launchChrome(config: ClientConfig): Promise<ChromeProcess>
   const chromePath = config.chromePath || await findChromeBinary();
   console.log(`[CHROME] Launching: ${chromePath}`);
 
-  const userDataDir = `/tmp/signage-chrome-${config.cdpPort}`;
+  const tmpBase = Deno.build.os === 'windows'
+    ? (Deno.env.get('TEMP') || Deno.env.get('TMP') || 'C:\\Temp')
+    : '/tmp';
+  const userDataDir = `${tmpBase}${Deno.build.os === 'windows' ? '\\' : '/'}signage-chrome-${config.cdpPort}`;
 
   const args = [
     `--remote-debugging-port=${config.cdpPort}`,

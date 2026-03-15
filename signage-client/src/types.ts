@@ -63,6 +63,17 @@ export interface NetworkInterface {
   ipAddress: string[];
 }
 
+export interface DisplayInfo {
+  /** Connector name, e.g. "HDMI-1", "HDMI-2", "DSI-1" */
+  name: string;
+  /** Whether a display is physically connected */
+  connected: boolean;
+  /** Whether this is the primary display */
+  primary: boolean;
+  /** Current resolution if connected, e.g. "1920x1080" */
+  resolution?: string;
+}
+
 export interface HealthStatus {
   healthy: boolean;
   consecutiveFailures: number;
