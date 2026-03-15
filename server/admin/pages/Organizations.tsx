@@ -27,7 +27,7 @@ interface Tenant {
   id: string;
   name: string;
   isPersonal: boolean;
-  role: string;
+  userRole: string;
   members?: Member[];
   createdAt: Date;
 }
@@ -85,7 +85,7 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                 id: details.id,
                 name: details.name,
                 isPersonal: details.isPersonal,
-                role: details.userRole,
+                userRole: details.userRole,
                 createdAt: new Date(details.createdAt),
                 members: details.members.map(m => ({
                   id: m.userId,
@@ -102,7 +102,7 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                 id: tenant.id,
                 name: tenant.name,
                 isPersonal: tenant.isPersonal,
-                role: tenant.userRole,
+                userRole: tenant.userRole,
                 createdAt: new Date(tenant.createdAt),
                 members: []
               };
@@ -172,7 +172,7 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
         id: details.id,
         name: details.name,
         isPersonal: details.isPersonal,
-        role: details.userRole,
+        userRole: details.userRole,
         createdAt: new Date(details.createdAt),
         members: details.members.map(m => ({
           id: m.userId,
@@ -356,7 +356,7 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                   </span>
                   <div className="org-info">
                     <span className="org-name">{org.name}</span>
-                    <span className="org-role">{org.role}</span>
+                    <span className="org-role">{org.userRole}</span>
                   </div>
                 </li>
               ))}
@@ -381,7 +381,7 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                     </span>
                   </div>
                   
-                  {!selectedOrg.isPersonal && selectedOrg.role === 'owner' && (
+                  {!selectedOrg.isPersonal && selectedOrg.userRole === 'owner' && (
                     <div className="organization-header-actions">
                       <button
                         className="btn btn-info btn-sm"
@@ -418,49 +418,19 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                 <div className="organization-section">
                   <div className="section-header">
                     <h3>Members</h3>
-                    {!selectedOrg.isPersonal && (selectedOrg.role === 'owner' || selectedOrg.role === 'admin') && (
-                      <button 
+                    {!selectedOrg.isPersonal && (selectedOrg.userRole === 'owner' || selectedOrg.userRole === 'admin') && (
+                      <button
                         className="btn btn-primary btn-sm"
-                        onClick={() => setShowInviteForm(!showInviteForm)}
+                        onClick={() => {
+                          setInviteEmail('');
+                          setInviteRole('member');
+                          setShowInviteForm(true);
+                        }}
                       >
-                        {showInviteForm ? 'Cancel' : 'Invite Member'}
+                        Invite Member
                       </button>
                     )}
                   </div>
-                  
-                  {showInviteForm && (
-                    <div className="invite-form">
-                      <div className="invite-form-group">
-                        <label htmlFor="inviteEmail">Email Address</label>
-                        <input 
-                          type="email"
-                          id="inviteEmail"
-                          value={inviteEmail}
-                          onChange={(e) => setInviteEmail(e.target.value)}
-                          placeholder="colleague@example.com"
-                        />
-                      </div>
-                      
-                      <div className="invite-form-group">
-                        <label htmlFor="inviteRole">Role</label>
-                        <select 
-                          id="inviteRole"
-                          value={inviteRole}
-                          onChange={(e) => setInviteRole(e.target.value)}
-                        >
-                          <option value="member">Member</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                      </div>
-                      
-                      <button 
-                        className="btn btn-info"
-                        onClick={handleInviteUser}
-                      >
-                        Send Invitation
-                      </button>
-                    </div>
-                  )}
                   
                   <table className="members-table">
                     <thead>
@@ -468,7 +438,7 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                         <th>User</th>
                         <th>Role</th>
                         <th>Status</th>
-                        {(selectedOrg.role === 'owner' || selectedOrg.role === 'admin') && (
+                        {(selectedOrg.userRole === 'owner' || selectedOrg.userRole === 'admin') && (
                           <th>Actions</th>
                         )}
                       </tr>
@@ -494,32 +464,34 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                               {member.status}
                             </span>
                           </td>
-                          {(selectedOrg.role === 'owner' || selectedOrg.role === 'admin') && (
+                          {(selectedOrg.userRole === 'owner' || selectedOrg.userRole === 'admin') && (
                             <td className="member-actions">
-                              {/* Don't allow removing yourself if you're the owner */}
-                              {!(member.id === user?.id && member.role === 'owner') && (
-                                <button 
+                              {/* Remove button: can't remove yourself, admins can't remove owners */}
+                              {member.id !== user?.id &&
+                               !(selectedOrg.userRole === 'admin' && member.role === 'owner') && (
+                                <button
                                   className="member-action remove"
                                   onClick={() => handleMemberAction(member.id, 'remove')}
                                 >
                                   Remove
                                 </button>
                               )}
-                              
-                              {/* Only the owner can promote/demote, and you can't promote yourself */}
-                              {selectedOrg.role === 'owner' && member.id !== user?.id && (
+
+                              {/* Role management: owners can change any role, admins can promote/demote non-owners */}
+                              {member.id !== user?.id &&
+                               !(selectedOrg.userRole === 'admin' && member.role === 'owner') && (
                                 <>
                                   {member.role === 'member' && (
-                                    <button 
+                                    <button
                                       className="member-action promote"
                                       onClick={() => handleMemberAction(member.id, 'promote')}
                                     >
                                       Make Admin
                                     </button>
                                   )}
-                                  
+
                                   {member.role === 'admin' && (
-                                    <button 
+                                    <button
                                       className="member-action demote"
                                       onClick={() => handleMemberAction(member.id, 'demote')}
                                     >
@@ -664,7 +636,7 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
               </div>
               <div className="modal-body">
                 <p style={{ marginBottom: '15px' }}>
-                  This will permanently delete <strong>{selectedOrg.name}</strong> and all its data including playlists, campaigns, devices, and schedules.
+                  This will permanently delete <strong>{selectedOrg.name}</strong> and all its data including playlists, campaigns, devices, and schedules. The organization must have no other members before it can be deleted.
                 </p>
                 <div className="form-group">
                   <label htmlFor="delete-confirm">
@@ -698,6 +670,78 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                   disabled={deleteConfirmName !== selectedOrg.name}
                 >
                   Delete Organization
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Invite Member Modal */}
+        {showInviteForm && selectedOrg && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h2>Invite Member</h2>
+                <button
+                  className="modal-close"
+                  onClick={() => {
+                    setShowInviteForm(false);
+                    setInviteEmail('');
+                    setInviteRole('member');
+                    setError(null);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="modal-body">
+                <p>Invite a new member to <strong>{selectedOrg.name}</strong>.</p>
+                <div className="form-group">
+                  <label htmlFor="inviteEmail">Email Address</label>
+                  <input
+                    type="email"
+                    id="inviteEmail"
+                    className="form-input"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="colleague@example.com"
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="inviteRole">Role</label>
+                  <select
+                    id="inviteRole"
+                    className="form-input"
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value)}
+                  >
+                    <option value="member">Member</option>
+                    <option value="admin">Admin</option>
+                    {selectedOrg.userRole === 'owner' && (
+                      <option value="owner">Owner</option>
+                    )}
+                  </select>
+                </div>
+                {error && <p className="error-message">{error}</p>}
+              </div>
+              <div className="modal-footer">
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setShowInviteForm(false);
+                    setInviteEmail('');
+                    setInviteRole('member');
+                    setError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleInviteUser}
+                  disabled={!inviteEmail.trim()}
+                >
+                  Send Invitation
                 </button>
               </div>
             </div>
