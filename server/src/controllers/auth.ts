@@ -56,8 +56,8 @@ export async function verifyEmailToken(c: Context<AppEnv>): Promise<Response> {
     }, 400);
   }
 
-  // Consume the token so it cannot be reused
-  await emailVerificationService.deleteVerification(verification.id);
+  // Token stays in the DB until registration is fully complete
+  // (deleted in verifyNewRegistration after passkey setup succeeds)
 
   // Store verified email in session for registration
   const session = c.get('session');
@@ -255,6 +255,14 @@ export async function verifyNewRegistration(c: Context<AppEnv>): Promise<Respons
       } catch (error) {
         console.error(`Error adding user to invited tenant: ${error}`);
       }
+    }
+  }
+
+  // Consume the verification token now that registration is fully complete
+  if (session.verificationToken) {
+    const tokenRecord = await emailVerificationService.verifyEmailToken(session.verificationToken);
+    if (tokenRecord) {
+      await emailVerificationService.deleteVerification(tokenRecord.id);
     }
   }
 

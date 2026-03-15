@@ -51,11 +51,11 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated, setUser }) => {
 
     // Extract token from URL - check both query param and route param
     let token = null;
-    
+
     // Check for query parameter (e.g., ?token=abc123)
     const queryParams = new URLSearchParams(location.search);
     token = queryParams.get('token');
-    
+
     // If no query param, check for route parameter (e.g., /verify-email/abc123)
     if (!token && location.pathname.startsWith('/verify-email/')) {
       const pathParts = location.pathname.split('/');
@@ -63,9 +63,9 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated, setUser }) => {
         token = pathParts[2];
       }
     }
-    
+
     console.log("Found token in URL:", token);
-    
+
     if (token) {
       verifyEmailToken(token);
     }
