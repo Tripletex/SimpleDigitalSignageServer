@@ -5,6 +5,13 @@ import { csrfFetch } from '../utils/csrfFetch';
 import '../styles/Playlists.css';
 
 // Types definitions matching the required JSON structure
+interface CookieEntry {
+  name: string;
+  value: string;
+  domain?: string;
+  path?: string;
+}
+
 interface PlaylistItem {
   id: string | number;
   type: string; // 'URL', 'SLEEP', 'IMAGE', 'YOUTUBE'
@@ -15,6 +22,8 @@ interface PlaylistItem {
     loopCount?: number;
     fit?: string;       // 'contain' | 'cover' | 'fill'
     bgColor?: string;   // CSS color for background
+    cookies?: CookieEntry[];
+    headers?: Record<string, string>;
   };
   duration: number;
 }
@@ -63,6 +72,8 @@ const Playlists: React.FC<PlaylistsProps> = ({
   const [newItemLoopCount, setNewItemLoopCount] = useState<number>(1);
   const [newItemFit, setNewItemFit] = useState<string>('contain');
   const [newItemBgColor, setNewItemBgColor] = useState<string>('#000000');
+  const [newItemCookies, setNewItemCookies] = useState<CookieEntry[]>([]);
+  const [newItemHeaders, setNewItemHeaders] = useState<Array<{ key: string; value: string }>>([]);
 
   // Rename playlist state
   const [showRenameModal, setShowRenameModal] = useState<boolean>(false);
@@ -264,6 +275,8 @@ const Playlists: React.FC<PlaylistsProps> = ({
     setNewItemLoopCount(1);
     setNewItemFit('contain');
     setNewItemBgColor('#000000');
+    setNewItemCookies([]);
+    setNewItemHeaders([]);
     setSelectedPlaylist(null);
     setEditingItem(null);
   };
@@ -402,6 +415,13 @@ const Playlists: React.FC<PlaylistsProps> = ({
         return;
       }
 
+      // Build cookies/headers for the data object
+      const filteredCookies = newItemCookies.filter((c) => c.name && c.value);
+      const filteredHeaders: Record<string, string> = {};
+      for (const h of newItemHeaders) {
+        if (h.key && h.value) filteredHeaders[h.key] = h.value;
+      }
+
       // Create new item based on type
       let newItem: any;
 
@@ -412,6 +432,8 @@ const Playlists: React.FC<PlaylistsProps> = ({
           dataObj.loop = true;
           dataObj.loopCount = newItemLoopCount;
         }
+        if (filteredCookies.length > 0) dataObj.cookies = filteredCookies;
+        if (Object.keys(filteredHeaders).length > 0) dataObj.headers = filteredHeaders;
         newItem = {
           type: newItemType,
           data: dataObj,
@@ -421,15 +443,20 @@ const Playlists: React.FC<PlaylistsProps> = ({
         const dataObj: any = { location: newItemUrl };
         if (newItemFit !== 'contain') dataObj.fit = newItemFit;
         if (newItemBgColor !== '#000000') dataObj.bgColor = newItemBgColor;
+        if (filteredCookies.length > 0) dataObj.cookies = filteredCookies;
+        if (Object.keys(filteredHeaders).length > 0) dataObj.headers = filteredHeaders;
         newItem = {
           type: newItemType,
           data: dataObj,
           duration: newItemDuration,
         };
       } else if (newItemType === 'URL') {
+        const dataObj: any = { location: newItemUrl };
+        if (filteredCookies.length > 0) dataObj.cookies = filteredCookies;
+        if (Object.keys(filteredHeaders).length > 0) dataObj.headers = filteredHeaders;
         newItem = {
           type: newItemType,
-          data: { location: newItemUrl },
+          data: dataObj,
           duration: newItemDuration,
         };
       } else {
@@ -666,6 +693,12 @@ const Playlists: React.FC<PlaylistsProps> = ({
     setNewItemLoopCount(item.data?.loopCount || 1);
     setNewItemFit(item.data?.fit || 'contain');
     setNewItemBgColor(item.data?.bgColor || '#000000');
+    setNewItemCookies(item.data?.cookies || []);
+    setNewItemHeaders(
+      item.data?.headers
+        ? Object.entries(item.data.headers).map(([key, value]) => ({ key, value }))
+        : [],
+    );
     setShowItemModal(true);
   };
 
@@ -721,6 +754,12 @@ const Playlists: React.FC<PlaylistsProps> = ({
         return;
       }
 
+      const editCookies = newItemCookies.filter((c) => c.name && c.value);
+      const editHeaders: Record<string, string> = {};
+      for (const h of newItemHeaders) {
+        if (h.key && h.value) editHeaders[h.key] = h.value;
+      }
+
       const updatedItems = playlist.items.map(item => {
         if (item.id !== editingItem!.id) return item;
         const updated: any = {
@@ -735,14 +774,21 @@ const Playlists: React.FC<PlaylistsProps> = ({
             dataObj.loop = true;
             dataObj.loopCount = newItemLoopCount;
           }
+          if (editCookies.length > 0) dataObj.cookies = editCookies;
+          if (Object.keys(editHeaders).length > 0) dataObj.headers = editHeaders;
           updated.data = dataObj;
         } else if (newItemType === 'IMAGE') {
           const dataObj: any = { location: newItemUrl };
           if (newItemFit !== 'contain') dataObj.fit = newItemFit;
           if (newItemBgColor !== '#000000') dataObj.bgColor = newItemBgColor;
+          if (editCookies.length > 0) dataObj.cookies = editCookies;
+          if (Object.keys(editHeaders).length > 0) dataObj.headers = editHeaders;
           updated.data = dataObj;
         } else if (newItemType === 'URL') {
-          updated.data = { location: newItemUrl };
+          const dataObj: any = { location: newItemUrl };
+          if (editCookies.length > 0) dataObj.cookies = editCookies;
+          if (Object.keys(editHeaders).length > 0) dataObj.headers = editHeaders;
+          updated.data = dataObj;
         } else {
           delete updated.data;
         }
@@ -1211,7 +1257,113 @@ const Playlists: React.FC<PlaylistsProps> = ({
                     />
                   </div>
                 )}
-                
+
+                {(newItemType === 'URL' || newItemType === 'IMAGE' || newItemType === 'YOUTUBE') && (
+                  <>
+                    <hr style={{ margin: '16px 0', borderColor: '#444' }} />
+                    <h4 style={{ margin: '0 0 8px' }}>Cookies</h4>
+                    <p style={{ fontSize: '0.85em', color: '#888', margin: '0 0 8px' }}>
+                      Set cookies before loading this URL (e.g. to dismiss cookie banners).
+                    </p>
+                    {newItemCookies.map((cookie, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '4px', alignItems: 'center' }}>
+                        <input
+                          className="form-input"
+                          placeholder="Name"
+                          value={cookie.name}
+                          onChange={(e) => {
+                            const updated = [...newItemCookies];
+                            updated[idx] = { ...updated[idx], name: e.target.value };
+                            setNewItemCookies(updated);
+                          }}
+                          style={{ flex: 1 }}
+                        />
+                        <input
+                          className="form-input"
+                          placeholder="Value"
+                          value={cookie.value}
+                          onChange={(e) => {
+                            const updated = [...newItemCookies];
+                            updated[idx] = { ...updated[idx], value: e.target.value };
+                            setNewItemCookies(updated);
+                          }}
+                          style={{ flex: 1 }}
+                        />
+                        <input
+                          className="form-input"
+                          placeholder="Domain (optional)"
+                          value={cookie.domain || ''}
+                          onChange={(e) => {
+                            const updated = [...newItemCookies];
+                            updated[idx] = { ...updated[idx], domain: e.target.value || undefined };
+                            setNewItemCookies(updated);
+                          }}
+                          style={{ flex: 1 }}
+                        />
+                        <button
+                          className="btn btn-ghost"
+                          onClick={() => setNewItemCookies(newItemCookies.filter((_, i) => i !== idx))}
+                          style={{ padding: '4px 8px' }}
+                        >
+                          X
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => setNewItemCookies([...newItemCookies, { name: '', value: '' }])}
+                      style={{ fontSize: '0.85em' }}
+                    >
+                      + Add Cookie
+                    </button>
+
+                    <h4 style={{ margin: '16px 0 8px' }}>HTTP Headers</h4>
+                    <p style={{ fontSize: '0.85em', color: '#888', margin: '0 0 8px' }}>
+                      Extra headers sent with every request while this item is active (e.g. Authorization).
+                    </p>
+                    {newItemHeaders.map((header, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '4px', alignItems: 'center' }}>
+                        <input
+                          className="form-input"
+                          placeholder="Header name"
+                          value={header.key}
+                          onChange={(e) => {
+                            const updated = [...newItemHeaders];
+                            updated[idx] = { ...updated[idx], key: e.target.value };
+                            setNewItemHeaders(updated);
+                          }}
+                          style={{ flex: 1 }}
+                        />
+                        <input
+                          className="form-input"
+                          placeholder="Header value"
+                          value={header.value}
+                          onChange={(e) => {
+                            const updated = [...newItemHeaders];
+                            updated[idx] = { ...updated[idx], value: e.target.value };
+                            setNewItemHeaders(updated);
+                          }}
+                          style={{ flex: 2 }}
+                        />
+                        <button
+                          className="btn btn-ghost"
+                          onClick={() => setNewItemHeaders(newItemHeaders.filter((_, i) => i !== idx))}
+                          style={{ padding: '4px 8px' }}
+                        >
+                          X
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => setNewItemHeaders([...newItemHeaders, { key: '', value: '' }])}
+                      style={{ fontSize: '0.85em' }}
+                    >
+                      + Add Header
+                    </button>
+                  </>
+                )}
+
                 {error && (
                   <p className="error-message">{error}</p>
                 )}

@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+const cookieSchema = z.object({
+  name: z.string().min(1),
+  value: z.string(),
+  domain: z.string().optional(),
+  path: z.string().optional(),
+});
+
 export const playlistItemSchema = z.object({
   type: z.string().min(1, 'Type is required'),
   data: z.object({
@@ -7,6 +14,10 @@ export const playlistItemSchema = z.object({
     muted: z.boolean().optional(),
     loop: z.boolean().optional(),
     loopCount: z.number().int().min(1).optional(),
+    fit: z.string().optional(),
+    bgColor: z.string().optional(),
+    cookies: z.array(cookieSchema).optional(),
+    headers: z.record(z.string(), z.string()).optional(),
   }).optional(),
   duration: z.number().int().min(0, 'Duration must be 0 or positive'),
   position: z.number().int().optional(),
