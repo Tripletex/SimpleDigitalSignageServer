@@ -5,6 +5,12 @@ const step: ProvisionStep = {
   name: 'WiFi configuration',
 
   async ask(config: SavedConfig, ctx: ProvisionContext) {
+    if (!ctx.piModel.hasWifi) {
+      console.log('  No WiFi adapter detected — skipping WiFi setup.');
+      config.wifiSetup = false;
+      return;
+    }
+
     if (config.wifiSetup === undefined) {
       config.wifiSetup = await ctx.confirm('Set up WiFi?', false);
     }
@@ -26,8 +32,7 @@ const step: ProvisionStep = {
   },
 
   async do(config: SavedConfig, ctx: ProvisionContext) {
-    if (!config.wifiSetup) {
-      console.log('  Skipping WiFi setup.');
+    if (!config.wifiSetup || !ctx.piModel.hasWifi) {
       return;
     }
 

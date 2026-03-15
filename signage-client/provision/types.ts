@@ -15,10 +15,28 @@ export interface ProvisionStep {
   do?(config: SavedConfig, context: ProvisionContext): Promise<void>;
 }
 
+/** Detected Raspberry Pi model info */
+export interface PiModel {
+  /** Raw model string from /proc/device-tree/model, e.g. "Raspberry Pi 5 Model B Rev 1.0" */
+  raw: string;
+  /** Major Pi generation: 3, 4, 5, etc. */
+  generation: number;
+  /** Number of HDMI ports (1 for Pi 3, 2 for Pi 4/5) */
+  hdmiPorts: number;
+  /** Boot config file location */
+  bootConfig: string;
+  /** Whether this Pi supports full KMS (Pi 4/5) or needs fake KMS (Pi 3) */
+  useFkms: boolean;
+  /** Whether the Pi has a WiFi adapter */
+  hasWifi: boolean;
+}
+
 export interface ProvisionContext {
   host: string;
   user: string;
   keyFile: string;
+  /** Detected Pi model — set after SSH connection is established */
+  piModel: PiModel;
   /** Run a command on the remote host via SSH */
   ssh(command: string): Promise<{ code: number; stdout: string; stderr: string }>;
   /** Run a command on the remote host via SSH with sudo */

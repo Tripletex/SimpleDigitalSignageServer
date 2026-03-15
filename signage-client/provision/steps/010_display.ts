@@ -5,6 +5,8 @@ const step: ProvisionStep = {
   name: 'Install X11 and Chromium kiosk',
 
   async do(_config: SavedConfig, ctx: ProvisionContext) {
+    const { piModel } = ctx;
+
     console.log('  Installing X11, OpenBox, and Chromium...');
     await ctx.sshSudo(
       'apt-get install --no-install-recommends -y ' +
@@ -12,7 +14,7 @@ const step: ProvisionStep = {
       'chromium-browser unclutter',
     );
 
-    // X11 output config for dual HDMI
+    // X11 output config
     console.log('  Configuring X11 output...');
     await ctx.sshSudo('mkdir -p /etc/X11/xorg.conf.d');
     await ctx.writeRemoteFileSudo('/etc/X11/xorg.conf.d/99-v3d.conf', `\
@@ -24,12 +26,20 @@ Section "OutputClass"
 EndSection
 `);
 
-    // OpenBox autostart — launches Chromium in kiosk mode via the signage-client
-    console.log('  Configuring OpenBox autostart...');
+    // Build xrandr command based on available HDMI ports
+    let xrandrCmd: string;
+    if (piModel.hdmiPorts >= 2) {
+      xrandrCmd = 'xrandr --output HDMI-1 --auto --primary --output HDMI-2 --auto --right-of HDMI-1';
+    } else {
+      xrandrCmd = 'xrandr --output HDMI-1 --auto --primary';
+    }
+
+    // OpenBox autostart — launches signage client
+    console.log(`  Configuring OpenBox autostart (${piModel.hdmiPorts} HDMI port(s))...`);
     await ctx.ssh('mkdir -p ~/.config/openbox');
     await ctx.writeRemoteFile('/home/' + ctx.user + '/.config/openbox/autostart', `\
 # Display setup
-xrandr --output HDMI-1 --auto --primary --output HDMI-2 --auto --right-of HDMI-1
+${xrandrCmd}
 xset -dpms
 xset s off
 xset s noblank

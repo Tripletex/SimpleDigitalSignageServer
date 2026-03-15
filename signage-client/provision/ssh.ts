@@ -1,4 +1,4 @@
-import type { ProvisionContext } from './types.ts';
+import type { ProvisionContext, PiModel } from './types.ts';
 
 /**
  * Create an SSH-based provision context for executing commands on a remote Pi.
@@ -19,6 +19,8 @@ export function createContext(
     host,
     user,
     keyFile,
+    // Placeholder — call detectPiModel() after SSH is confirmed working
+    piModel: { raw: 'unknown', generation: 0, hdmiPorts: 1, bootConfig: '/boot/config.txt', useFkms: true, hasWifi: false },
 
     async ssh(command: string) {
       const proc = new Deno.Command('ssh', {
@@ -122,6 +124,38 @@ export async function ensureKeyPair(keyFile: string): Promise<void> {
       throw new Error('Failed to generate SSH key pair');
     }
   }
+}
+
+/**
+ * Detect the Raspberry Pi model by reading /proc/device-tree/model via SSH.
+ * Sets context.piModel with generation-specific details.
+ */
+export async function detectPiModel(context: ProvisionContext): Promise<void> {
+  const result = await context.ssh('cat /proc/device-tree/model 2>/dev/null || echo unknown');
+  const raw = result.stdout.trim().replace(/\0/g, ''); // strip null bytes
+
+  // Extract generation number from model string like "Raspberry Pi 5 Model B Rev 1.0"
+  const match = raw.match(/Raspberry Pi (\d+)/);
+  const generation = match ? parseInt(match[1], 10) : 0;
+
+  // Check for WiFi adapter (wlan0 interface)
+  const wifiCheck = await context.ssh('ls /sys/class/net/wlan0 2>/dev/null && echo yes || echo no');
+  const hasWifi = wifiCheck.stdout.trim().endsWith('yes');
+
+  const piModel: PiModel = {
+    raw,
+    generation,
+    // Pi 3 and earlier have 1 HDMI port; Pi 4 and 5 have 2
+    hdmiPorts: generation >= 4 ? 2 : 1,
+    // Pi 5 uses /boot/firmware/config.txt; older models use /boot/config.txt
+    bootConfig: generation >= 5 ? '/boot/firmware/config.txt' : '/boot/config.txt',
+    // Pi 3 needs fake KMS (fkms); Pi 4/5 use full KMS
+    useFkms: generation <= 3,
+    hasWifi,
+  };
+
+  context.piModel = piModel;
+  console.log(`Detected: ${raw} (generation ${generation}, ${piModel.hdmiPorts} HDMI port(s), WiFi: ${hasWifi ? 'yes' : 'no'})`);
 }
 
 /**

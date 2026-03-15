@@ -5,20 +5,34 @@ const step: ProvisionStep = {
   name: 'Initialize Pi configuration',
 
   async do(_config: SavedConfig, ctx: ProvisionContext) {
+    const { piModel } = ctx;
+
     console.log('  Creating config directories...');
     await ctx.ssh('mkdir -p ~/.config/signage-client');
 
     console.log('  Enabling auto-login...');
     await ctx.sshSudo('raspi-config nonint do_boot_behaviour B2');
 
-    // Fix dual monitor support (vc4-kms-v3d → vc4-fkms-v3d)
-    console.log('  Configuring boot for dual HDMI...');
+    // Boot config path differs by model
+    const bootConfig = piModel.bootConfig;
+    console.log(`  Configuring boot (${bootConfig})...`);
     await ctx.sshSudo(
-      'if [ ! -f /boot/config.txt.bak ]; then cp /boot/config.txt /boot/config.txt.bak; fi',
+      `if [ ! -f ${bootConfig}.bak ]; then cp ${bootConfig} ${bootConfig}.bak; fi`,
     );
-    await ctx.sshSudo(
-      `sed -i 's|^dtoverlay=vc4-kms-v3d|dtoverlay=vc4-fkms-v3d|g' /boot/config.txt`,
-    );
+
+    if (piModel.useFkms) {
+      // Pi 3: switch to fake KMS for compatibility
+      console.log('  Setting fake KMS overlay (Pi 3)...');
+      await ctx.sshSudo(
+        `sed -i 's|^dtoverlay=vc4-kms-v3d|dtoverlay=vc4-fkms-v3d|g' ${bootConfig}`,
+      );
+    } else {
+      // Pi 4/5: ensure full KMS is active
+      console.log('  Ensuring full KMS overlay (Pi 4/5)...');
+      await ctx.sshSudo(
+        `sed -i 's|^dtoverlay=vc4-fkms-v3d|dtoverlay=vc4-kms-v3d|g' ${bootConfig}`,
+      );
+    }
   },
 };
 

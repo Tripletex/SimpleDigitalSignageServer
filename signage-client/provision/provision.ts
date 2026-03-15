@@ -11,7 +11,7 @@
  */
 
 import type { ProvisionStep, SavedConfig, ProvisionOptions } from './types.ts';
-import { createContext, ensureKeyPair, copyPublicKey } from './ssh.ts';
+import { createContext, ensureKeyPair, copyPublicKey, detectPiModel } from './ssh.ts';
 
 // Import all steps in order
 import init from './steps/000_init.ts';
@@ -115,7 +115,11 @@ async function main() {
     console.error('Failed to connect via SSH. Check host, user, and key.');
     Deno.exit(1);
   }
-  console.log('SSH connection successful.\n');
+  console.log('SSH connection successful.');
+
+  // Detect Pi model for model-specific steps
+  await detectPiModel(ctx);
+  console.log();
 
   // Phase 1: Ask all questions upfront
   console.log('--- Configuration ---\n');
