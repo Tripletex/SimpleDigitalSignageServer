@@ -890,7 +890,7 @@ const Campaigns: React.FC<CampaignsProps> = ({
                   <div key={campaign.id} className="campaign-card">
                     <div className="campaign-card-header">
                       <h3>{campaign.name}</h3>
-                      <div className="campaign-actions">
+                      <div className="action-buttons-cell">
                         <button 
                           className="btn-icon"
                           onClick={() => {

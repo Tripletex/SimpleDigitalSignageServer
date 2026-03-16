@@ -30,12 +30,7 @@
   overflow-x: auto;
 }
 
-.action-buttons-cell {
-  min-width: 220px;
-  white-space: nowrap;
-  padding: 10px 15px;
-  vertical-align: middle;
-}
+/* action-buttons-cell styles moved to common.css */
 
 .App-table td:last-child {
   min-width: 220px;

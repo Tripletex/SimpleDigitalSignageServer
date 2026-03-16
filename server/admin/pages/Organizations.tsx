@@ -339,14 +339,22 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
   return (
     <Layout user={user} handleLogout={handleLogout}>
       <div className="organizations-container">
-        <h1>Organization Management</h1>
-        
+        <div className="devices-header">
+          <h1>Organization Management</h1>
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowCreateOrgForm(true)}
+          >
+            Create New Organization
+          </button>
+        </div>
+
         <div className="organizations-content">
           <div className="organizations-sidebar">
             <h2>Your Organizations</h2>
             <ul className="organization-list">
               {organizations.map(org => (
-                <li 
+                <li
                   key={org.id}
                   className={`organization-item ${selectedOrgId === org.id ? 'active' : ''}`}
                   onClick={() => setSelectedOrgId(org.id)}
@@ -361,13 +369,6 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                 </li>
               ))}
             </ul>
-            
-            <button 
-              className="btn btn-primary"
-              onClick={() => setShowCreateOrgForm(true)}
-            >
-              Create New Organization
-            </button>
           </div>
           
           <div className="organization-details">

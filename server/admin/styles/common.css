@@ -90,6 +90,14 @@
   background-color: #e0e0e0;
 }
 
+/* --- Action Button Cell (table rows with edit/delete buttons) --- */
+.action-buttons-cell {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  white-space: nowrap;
+}
+
 /* --- Outlined Button Variants --- */
 
 /* Green outline — section "add" buttons */
