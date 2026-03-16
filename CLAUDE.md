@@ -39,8 +39,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 │   ├── admin/           # React admin UI source
 │   ├── migrations/      # Database migrations
 │   └── dist/            # Built admin UI output
-├── shared/              # Shared TypeScript types
-└── server-node-archived/  # Previous Node.js server (reference)
+└── shared/              # Shared TypeScript types
 ```
 
 ## Database Migrations
