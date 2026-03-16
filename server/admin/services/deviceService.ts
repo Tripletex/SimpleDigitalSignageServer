@@ -18,5 +18,6 @@ export {
   claimDevice,
   releaseDevice,
   getDeviceById,
-  assignDisplayCampaign
+  assignDisplayCampaign,
+  clearDisplayCampaigns
 } from './deviceApiService';

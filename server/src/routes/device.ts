@@ -18,6 +18,7 @@ app.get('/tenant/:tenantId/devices', isAuthenticated, requireTenantMember, handl
 app.post('/tenant/:tenantId/claim', isAuthenticated, requireTenantMember, handleErrors(deviceController.claimDevice));
 app.delete('/tenant/:tenantId/devices/:deviceId', isAuthenticated, requireTenantMember, handleErrors(deviceController.releaseDevice));
 app.post('/tenant/:tenantId/devices/:deviceId/displays/:displayName/campaign', isAuthenticated, requireTenantMember, handleErrors(deviceController.assignDisplayCampaign));
+app.delete('/tenant/:tenantId/devices/:deviceId/campaigns', isAuthenticated, requireTenantMember, handleErrors(deviceController.clearDisplayCampaigns));
 app.get('/:id', requireApiKeyOrAuth, handleErrors(deviceController.getDeviceById));
 
 export default app;

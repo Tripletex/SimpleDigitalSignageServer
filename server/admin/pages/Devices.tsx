@@ -653,23 +653,48 @@ const Devices: React.FC<DeviceProps> = ({ user, setIsAuthenticated, setUser, cur
                   <p className="error-message">{error}</p>
                 )}
               </div>
-              <div className="modal-footer">
-                <button 
-                  className="btn btn-ghost"
-                  onClick={() => {
-                    setShowCampaignModal(false);
-                    setError(null);
+              <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+                <button
+                  className="btn btn-danger"
+                  onClick={async () => {
+                    if (!currentTenant || !selectedDeviceId) return;
+                    if (!window.confirm('Clear ALL campaign assignments for this device?')) return;
+                    try {
+                      setAssigningCampaign(true);
+                      await deviceService.clearDisplayCampaigns(currentTenant.id, selectedDeviceId);
+                      setShowCampaignModal(false);
+                      setSuccessMessage('All campaign assignments cleared');
+                      const devices = await deviceService.getTenantDevices(currentTenant.id);
+                      setDeviceRegistrations(devices);
+                      setTimeout(() => setSuccessMessage(null), 3000);
+                    } catch (err) {
+                      setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
+                    } finally {
+                      setAssigningCampaign(false);
+                    }
                   }}
-                >
-                  Cancel
-                </button>
-                <button 
-                  className="btn btn-primary"
-                  onClick={handleAssignCampaign}
                   disabled={assigningCampaign}
+                >
+                  Clear All
+                </button>
+                <div className="action-buttons-cell">
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      setShowCampaignModal(false);
+                      setError(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleAssignCampaign}
+                    disabled={assigningCampaign}
                 >
                   {assigningCampaign ? 'Assigning...' : 'Assign Campaign'}
                 </button>
+                </div>
               </div>
             </div>
           </div>
