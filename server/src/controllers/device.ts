@@ -15,6 +15,7 @@ import tenantRepository from '../repositories/tenant.ts';
 import playlistGroupRepository from '../repositories/playlistGroup.ts';
 import playlistRepository from '../repositories/playlist.ts';
 import { wsManager } from '../services/websocket.ts';
+import tenantSecretRepository from '../repositories/tenantSecret.ts';
 
 /**
  * Get the set of tenant IDs accessible to the authenticated caller.
@@ -338,9 +339,56 @@ export async function assignDisplayCampaign(c: Context<AppEnv>): Promise<Respons
 }
 
 /**
- * Resolve a campaign (playlist group) to its full content with schedules.
+ * Resolve secret references in playlist item headers.
+ * Replaces { secretId: "uuid" } with the decrypted value,
+ * but only if the item's URL domain matches the secret's domain.
  */
-async function resolveCampaign(campaignId: string) {
+async function resolveItemHeaders(
+  item: { data?: Record<string, unknown> },
+  tenantId: string,
+): Promise<Record<string, string> | undefined> {
+  const headers = item.data?.headers as Record<string, string | { secretId: string }> | undefined;
+  if (!headers) return undefined;
+
+  let itemDomain: string | undefined;
+  try {
+    const location = item.data?.location as string | undefined;
+    if (location) itemDomain = new URL(location).hostname;
+  } catch { /* ignore invalid URLs */ }
+
+  const resolved: Record<string, string> = {};
+
+  for (const [name, value] of Object.entries(headers)) {
+    if (typeof value === 'string') {
+      resolved[name] = value;
+    } else if (value && typeof value === 'object' && 'secretId' in value) {
+      const secret = await tenantSecretRepository.getSecretById(value.secretId, tenantId);
+      if (!secret) {
+        console.warn(`[CONTENT] Secret ${value.secretId} not found, skipping header ${name}`);
+        continue;
+      }
+
+      // Enforce domain match
+      if (secret.domain && itemDomain && secret.domain !== itemDomain) {
+        console.warn(`[CONTENT] Secret "${secret.name}" domain ${secret.domain} does not match item domain ${itemDomain}, skipping`);
+        continue;
+      }
+
+      const decrypted = await tenantSecretRepository.getDecryptedValue(value.secretId, tenantId);
+      if (decrypted) {
+        resolved[name] = decrypted;
+      }
+    }
+  }
+
+  return Object.keys(resolved).length > 0 ? resolved : undefined;
+}
+
+/**
+ * Resolve a campaign (playlist group) to its full content with schedules.
+ * Secret references in headers are decrypted and domain-validated.
+ */
+async function resolveCampaign(campaignId: string, tenantId: string) {
   const playlistGroup = await playlistGroupRepository.getPlaylistGroupById(campaignId);
   if (!playlistGroup) return null;
 
@@ -356,13 +404,19 @@ async function resolveCampaign(campaignId: string) {
           ? {
             id: playlist.id,
             name: playlist.name,
-            items: (playlist.items ?? []).map((item) => ({
+            items: await Promise.all((playlist.items ?? []).map(async (item) => ({
               id: item.id,
               type: item.type,
-              data: item.data,
+              data: {
+                ...item.data as Record<string, unknown>,
+                headers: await resolveItemHeaders(
+                  { data: item.data as Record<string, unknown> },
+                  tenantId,
+                ),
+              },
               duration: item.duration,
               position: item.position,
-            })),
+            }))),
           }
           : null,
       };
@@ -402,7 +456,7 @@ export async function getDeviceContent(c: Context<AppEnv>): Promise<Response> {
   const resolvedCampaigns = new Map<string, Awaited<ReturnType<typeof resolveCampaign>>>();
   await Promise.all(
     uniqueCampaignIds.map(async (id) => {
-      resolvedCampaigns.set(id, await resolveCampaign(id));
+      resolvedCampaigns.set(id, await resolveCampaign(id, fullDevice.tenantId!));
     }),
   );
 

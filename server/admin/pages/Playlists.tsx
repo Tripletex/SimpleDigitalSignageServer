@@ -23,9 +23,16 @@ interface PlaylistItem {
     fit?: string;       // 'contain' | 'cover' | 'fill'
     bgColor?: string;   // CSS color for background
     cookies?: CookieEntry[];
-    headers?: Record<string, string>;
+    headers?: Record<string, string | { secretId: string }>;
   };
   duration: number;
+}
+
+interface TenantSecret {
+  id: string;
+  name: string;
+  domain?: string;
+  description?: string;
 }
 
 interface Playlist {
@@ -73,7 +80,8 @@ const Playlists: React.FC<PlaylistsProps> = ({
   const [newItemFit, setNewItemFit] = useState<string>('contain');
   const [newItemBgColor, setNewItemBgColor] = useState<string>('#000000');
   const [newItemCookies, setNewItemCookies] = useState<CookieEntry[]>([]);
-  const [newItemHeaders, setNewItemHeaders] = useState<Array<{ key: string; value: string }>>([]);
+  const [newItemHeaders, setNewItemHeaders] = useState<Array<{ key: string; mode: 'plain' | 'secret'; value: string; secretId: string }>>([]);
+  const [tenantSecrets, setTenantSecrets] = useState<TenantSecret[]>([]);
 
   // Rename playlist state
   const [showRenameModal, setShowRenameModal] = useState<boolean>(false);
@@ -173,9 +181,26 @@ const Playlists: React.FC<PlaylistsProps> = ({
       }
     };
 
+    const fetchSecrets = async () => {
+      try {
+        const tenant = currentTenant || (localStorage.getItem('currentTenant')
+          ? JSON.parse(localStorage.getItem('currentTenant')!)
+          : null);
+        if (!tenant) return;
+        const response = await fetch(`/api/tenant/${tenant.id}/secrets`);
+        if (response.ok) {
+          const data = await response.json();
+          setTenantSecrets(data.secrets || []);
+        }
+      } catch {
+        // Secrets fetch is best-effort — user may not be admin
+      }
+    };
+
     // Check if we have a tenant either from props or localStorage
     if (currentTenant || localStorage.getItem('currentTenant')) {
       fetchPlaylists();
+      fetchSecrets();
     } else {
       setPlaylistConfig(null);
       setLoading(false);
@@ -278,6 +303,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
     setNewItemCookies([]);
     setNewItemHeaders([]);
     setSelectedPlaylist(null);
+    setEditingItem(null);
     setEditingItem(null);
   };
 
@@ -417,9 +443,14 @@ const Playlists: React.FC<PlaylistsProps> = ({
 
       // Build cookies/headers for the data object
       const filteredCookies = newItemCookies.filter((c) => c.name && c.value);
-      const filteredHeaders: Record<string, string> = {};
+      const filteredHeaders: Record<string, string | { secretId: string }> = {};
       for (const h of newItemHeaders) {
-        if (h.key && h.value) filteredHeaders[h.key] = h.value;
+        if (!h.key) continue;
+        if (h.mode === 'secret' && h.secretId) {
+          filteredHeaders[h.key] = { secretId: h.secretId };
+        } else if (h.mode === 'plain' && h.value) {
+          filteredHeaders[h.key] = h.value;
+        }
       }
 
       // Create new item based on type
@@ -696,7 +727,12 @@ const Playlists: React.FC<PlaylistsProps> = ({
     setNewItemCookies(item.data?.cookies || []);
     setNewItemHeaders(
       item.data?.headers
-        ? Object.entries(item.data.headers).map(([key, value]) => ({ key, value }))
+        ? Object.entries(item.data.headers).map(([key, value]) => {
+            if (typeof value === 'object' && value && 'secretId' in value) {
+              return { key, mode: 'secret' as const, value: '', secretId: value.secretId };
+            }
+            return { key, mode: 'plain' as const, value: value as string, secretId: '' };
+          })
         : [],
     );
     setShowItemModal(true);
@@ -914,7 +950,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
                     <div key={playlist.name} className="playlist-card">
                       <div className="playlist-card-header">
                         <h3>{playlist.name}</h3>
-                        <div className="playlist-actions">
+                        <div className="action-buttons-cell">
                           <button
                             className="btn btn-outline-primary btn-sm"
                             onClick={() => {
@@ -1030,8 +1066,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
                                       <span style={{ color: '#7f8c8d', fontSize: '0.8rem' }}> muted</span>
                                     )}
                                   </td>
-                                  <td>
-                                    <div className="playlist-actions">
+                                  <td className="action-buttons-cell">
                                       <button
                                         className="btn btn-info btn-sm"
                                         onClick={() => handleEditItem(playlist.name, item)}
@@ -1046,7 +1081,6 @@ const Playlists: React.FC<PlaylistsProps> = ({
                                       >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                       </button>
-                                    </div>
                                   </td>
                                 </tr>
                               ))}
@@ -1322,7 +1356,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
                       Extra headers sent with every request while this item is active (e.g. Authorization).
                     </p>
                     {newItemHeaders.map((header, idx) => (
-                      <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '4px', alignItems: 'center' }}>
+                      <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
                         <input
                           className="form-input"
                           placeholder="Header name"
@@ -1332,19 +1366,42 @@ const Playlists: React.FC<PlaylistsProps> = ({
                             updated[idx] = { ...updated[idx], key: e.target.value };
                             setNewItemHeaders(updated);
                           }}
-                          style={{ flex: 1 }}
+                          style={{ flex: 1, minWidth: '120px' }}
                         />
-                        <input
+                        <select
                           className="form-input"
-                          placeholder="Header value"
-                          value={header.value}
+                          value={header.mode === 'secret' ? header.secretId : '__plain__'}
                           onChange={(e) => {
                             const updated = [...newItemHeaders];
-                            updated[idx] = { ...updated[idx], value: e.target.value };
+                            if (e.target.value === '__plain__') {
+                              updated[idx] = { ...updated[idx], mode: 'plain', secretId: '' };
+                            } else {
+                              updated[idx] = { ...updated[idx], mode: 'secret', secretId: e.target.value, value: '' };
+                            }
                             setNewItemHeaders(updated);
                           }}
-                          style={{ flex: 2 }}
-                        />
+                          style={{ flex: 2, minWidth: '150px' }}
+                        >
+                          <option value="__plain__">Custom value...</option>
+                          {tenantSecrets.map((secret) => (
+                            <option key={secret.id} value={secret.id}>
+                              {secret.name}{secret.domain ? ` (${secret.domain})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        {header.mode === 'plain' && (
+                          <input
+                            className="form-input"
+                            placeholder="Header value"
+                            value={header.value}
+                            onChange={(e) => {
+                              const updated = [...newItemHeaders];
+                              updated[idx] = { ...updated[idx], value: e.target.value };
+                              setNewItemHeaders(updated);
+                            }}
+                            style={{ flex: 2, minWidth: '150px' }}
+                          />
+                        )}
                         <button
                           className="btn btn-ghost"
                           onClick={() => setNewItemHeaders(newItemHeaders.filter((_, i) => i !== idx))}
@@ -1356,7 +1413,7 @@ const Playlists: React.FC<PlaylistsProps> = ({
                     ))}
                     <button
                       className="btn btn-ghost"
-                      onClick={() => setNewItemHeaders([...newItemHeaders, { key: '', value: '' }])}
+                      onClick={() => setNewItemHeaders([...newItemHeaders, { key: '', mode: 'plain', value: '', secretId: '' }])}
                       style={{ fontSize: '0.85em' }}
                     >
                       + Add Header

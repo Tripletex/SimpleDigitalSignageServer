@@ -17,7 +17,10 @@ export const playlistItemSchema = z.object({
     fit: z.string().optional(),
     bgColor: z.string().optional(),
     cookies: z.array(cookieSchema).optional(),
-    headers: z.record(z.string(), z.string()).optional(),
+    headers: z.record(z.string(), z.union([
+      z.string(),
+      z.object({ secretId: z.string().uuid() }),
+    ])).optional(),
   }).optional(),
   duration: z.number().int().min(0, 'Duration must be 0 or positive'),
   position: z.number().int().optional(),
