@@ -1,0 +1,128 @@
+/* Global styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f4f6f9;
+  color: #333;
+  line-height: 1.6;
+}
+
+/* Legacy App styles - These will be transitioned out in favor of component-specific styling */
+.App {
+  min-height: 100vh;
+}
+
+.App-header {
+  display: flex;
+  flex-direction: column;
+  font-size: calc(10px + 2vmin);
+  margin-bottom: 30px;
+  color: #333;
+  padding: 20px;
+}
+
+.App-header h1 {
+  margin: 0;
+}
+
+/* Dashboard container */
+.dashboard-container {
+  padding: 20px;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+.App-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.App-table th,
+.App-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.App-table th {
+  background-color: #f8f9fa;
+  color: #333;
+  font-weight: 600;
+  font-size: 0.9em;
+  letter-spacing: 0.5px;
+}
+
+.App-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.App-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Network table styling (nested table) */
+.network-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  font-size: 0.9em;
+}
+
+.network-table th,
+.network-table td {
+  padding: 8px;
+  text-align: left;
+  border: 1px solid #e0e0e0;
+}
+
+.network-table th {
+  background-color: #f3f4f6;
+  font-size: 0.8em;
+  font-weight: 600;
+}
+
+/* Status indicators */
+.status-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.status-online {
+  background-color: #4CAF50;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.8);
+}
+
+.status-idle {
+  background-color: #FF9800;
+  box-shadow: 0 0 8px rgba(255, 152, 0, 0.8);
+}
+
+.status-offline {
+  background-color: #F44336;
+  box-shadow: 0 0 8px rgba(244, 67, 54, 0.8);
+}
+
+@media screen and (max-width: 768px) {
+  .App-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+

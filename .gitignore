@@ -1,9 +1,28 @@
-# build directory
+# build output
 build
+dist
 
 # Dependency directories
 node_modules/
 
-
 # ide directory
 .idea
+*.pem
+
+# Environment files (contain secrets)
+.env
+server/.env
+
+# Deno lock file
+deno.lock
+
+# Test scripts
+test-*.sh
+
+# Provisioning (SSH keys and saved config contain secrets)
+provision_key
+provision_key.pub
+saved-config.json
+
+.claude-memory-private
+.claude/settings.local.json

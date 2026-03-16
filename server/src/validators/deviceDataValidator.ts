@@ -1,13 +1,20 @@
-// validators/deviceDataValidator.ts
-import Joi from 'joi';
+import { z } from 'zod';
 
-export const networkSchema = Joi.object({
-    name: Joi.string().required(),
-    ipAddress: Joi.array().items(Joi.string()).required(),
+export const networkSchema = z.object({
+  name: z.string().min(1),
+  ipAddress: z.array(z.string()),
 });
 
-export const deviceDataSchema = Joi.object({
-    id: Joi.string().guid({ version: 'uuidv4' }).required(),
-    name: Joi.string().required(),
-    networks: Joi.array().items(networkSchema).optional(),
+export const displaySchema = z.object({
+  name: z.string().min(1),
+  connected: z.boolean(),
+  primary: z.boolean(),
+  resolution: z.string().optional(),
+});
+
+export const deviceDataSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  networks: z.array(networkSchema).optional(),
+  displays: z.array(displaySchema).optional(),
 });

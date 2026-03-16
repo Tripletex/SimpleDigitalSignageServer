@@ -1,10 +1,9 @@
-import Joi, { Schema, ValidationResult } from 'joi';
-import { Request } from 'express';
+import { z, ZodSchema } from 'zod';
 
-export async function validateAndConvert<T>(req: Request, schema: Schema): Promise<T> {
-    const { error, value }: ValidationResult = schema.validate(req.body);
-    if (error) {
-        throw new Error(`Validation error: ${error.details.map(x => x.message).join(', ')}`);
-    }
-    return value as T;
+export function validateAndSanitize<T>(schema: ZodSchema<T>, data: unknown): T {
+  return schema.parse(data);
+}
+
+export function safeParse<T>(schema: ZodSchema<T>, data: unknown) {
+  return schema.safeParse(data);
 }

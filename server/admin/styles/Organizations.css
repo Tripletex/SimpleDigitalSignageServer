@@ -1,0 +1,299 @@
+.organizations-container {
+  padding: 20px;
+}
+
+.organizations-container h1 {
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.organizations-content {
+  display: flex;
+  gap: 20px;
+  min-height: calc(100vh - 160px);
+}
+
+/* Organizations sidebar */
+.organizations-sidebar {
+  width: 280px;
+  min-width: 280px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.organizations-sidebar h2 {
+  font-size: 1.1rem;
+  color: #2c3e50;
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.organization-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  margin-bottom: 20px;
+  flex-grow: 1;
+}
+
+.organization-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.organization-item:hover {
+  background-color: #f5f7fa;
+}
+
+.organization-item.active {
+  background-color: #ebf5ff;
+}
+
+.org-icon {
+  font-size: 1.2rem;
+  margin-right: 10px;
+}
+
+.org-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.org-name {
+  font-weight: 500;
+  color: #2c3e50;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.org-role {
+  font-size: 0.8rem;
+  color: #7f8c8d;
+  margin-top: 2px;
+}
+
+/* new-organization-btn styles moved to common.css (btn btn-info) */
+
+/* Organization details */
+.organization-details {
+  flex-grow: 1;
+  min-width: 0;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  overflow: hidden;
+}
+
+.organization-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.organization-title {
+  overflow: hidden;
+  min-width: 0;
+}
+
+.organization-title h2 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.organization-type {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+}
+
+/* delete-organization-btn styles moved to common.css (btn btn-danger) */
+
+.organization-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.organization-section {
+  margin-bottom: 30px;
+}
+
+/* section-header, invite-btn styles moved to common.css */
+
+.invite-form {
+  background-color: #f9f9f9;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  border: 1px solid #eee;
+}
+
+.invite-form-group {
+  margin-bottom: 15px;
+}
+
+.invite-form-group label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 5px;
+  font-size: 0.9rem;
+  color: #2c3e50;
+}
+
+.invite-form-group input,
+.invite-form-group select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+/* send-invite-btn, success/error messages moved to common.css */
+
+/* Members table */
+.members-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.members-table th,
+.members-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.members-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.member-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.member-name {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.member-email {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  margin-top: 2px;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.role-badge.owner {
+  background-color: #ebf5ff;
+  color: #2980b9;
+}
+
+.role-badge.admin {
+  background-color: #f3ecf8;
+  color: #8e44ad;
+}
+
+.role-badge.member {
+  background-color: #f0f2f4;
+  color: #636e72;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-badge.active {
+  background-color: #eafaf1;
+  color: #27ae60;
+}
+
+.status-badge.pending {
+  background-color: #fef5e7;
+  color: #e67e22;
+}
+
+.member-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.member-action {
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.member-action.remove {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.member-action.promote {
+  background-color: #3498db;
+  color: white;
+}
+
+.member-action.demote {
+  background-color: #f39c12;
+  color: white;
+}
+
+.member-action:hover {
+  opacity: 0.9;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .organizations-content {
+    flex-direction: column;
+  }
+  
+  .organizations-sidebar {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+  
+  .member-actions {
+    flex-direction: column;
+  }
+}
