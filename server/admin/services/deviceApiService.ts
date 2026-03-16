@@ -11,6 +11,7 @@ export type Network = {
 
 export type DisplayCampaign = {
   displayName: string;
+  hardwareId?: string;
   campaignId: string;
 }
 
@@ -23,7 +24,7 @@ export type DeviceData = {
   claimedAt?: Date;
   displayName?: string;
   displayCount?: number;
-  displays?: Array<{ name: string; connected: boolean; primary: boolean; resolution?: string }>;
+  displays?: Array<{ name: string; hardwareId?: string; connected: boolean; primary: boolean; resolution?: string }>;
   displayCampaigns?: DisplayCampaign[];
 }
 
@@ -179,6 +180,26 @@ export const assignDisplayCampaign = async (
   const data = await response.json();
   if (!response.ok) {
     throw new Error(data.message || `Failed to assign campaign to display: ${response.status}`);
+  }
+
+  return data;
+};
+
+/**
+ * Clear all display campaign assignments for a device
+ */
+export const clearDisplayCampaigns = async (
+  tenantId: string,
+  deviceId: string,
+): Promise<CampaignAssignmentResponse> => {
+  const response = await csrfFetch(
+    `/api/device/tenant/${tenantId}/devices/${deviceId}/campaigns`,
+    { method: 'DELETE' },
+  );
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || `Failed to clear campaigns: ${response.status}`);
   }
 
   return data;

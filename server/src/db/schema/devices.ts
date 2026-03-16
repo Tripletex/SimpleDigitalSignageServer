@@ -19,6 +19,7 @@ export const deviceDisplayCampaigns = pgTable('device_display_campaigns', {
   id: uuid('id').primaryKey().defaultRandom(),
   deviceId: uuid('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
   displayName: varchar('display_name', { length: 255 }).notNull(),
+  hardwareId: varchar('hardware_id', { length: 255 }),
   campaignId: uuid('campaign_id').notNull(),  // FK to playlist_groups, added in relations
   tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

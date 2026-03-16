@@ -177,6 +177,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     id: { type: 'uuid', primaryKey: true },
     device_id: { type: 'uuid', notNull: true, references: 'devices', onDelete: 'CASCADE' },
     display_name: { type: 'varchar(255)', notNull: true },
+    hardware_id: { type: 'varchar(255)' },
     campaign_id: { type: 'uuid', notNull: true, references: 'playlist_groups', onDelete: 'CASCADE' },
     tenant_id: { type: 'uuid', notNull: true, references: 'tenants', onDelete: 'CASCADE' },
     created_at: { type: 'timestamptz', notNull: true, default: pgm.func('current_timestamp') },

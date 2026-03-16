@@ -179,6 +179,7 @@ const deviceRepository = {
     displayName: string,
     campaignId: string | null,
     tenantId: string,
+    hardwareId?: string,
   ) {
     if (campaignId === null) {
       // Remove assignment for this display
@@ -200,7 +201,7 @@ const deviceRepository = {
 
     if (existing) {
       const [updated] = await db.update(deviceDisplayCampaigns)
-        .set({ campaignId, updatedAt: new Date() })
+        .set({ campaignId, hardwareId: hardwareId ?? existing.hardwareId, updatedAt: new Date() })
         .where(eq(deviceDisplayCampaigns.id, existing.id))
         .returning();
       return updated;
@@ -211,6 +212,7 @@ const deviceRepository = {
         id: uuidv7(),
         deviceId,
         displayName,
+        hardwareId: hardwareId ?? null,
         campaignId,
         tenantId,
         createdAt: new Date(),
@@ -227,6 +229,13 @@ const deviceRepository = {
         campaign: true,
       },
     });
+  },
+
+  async clearDisplayCampaigns(deviceId: string) {
+    const result = await db.delete(deviceDisplayCampaigns)
+      .where(eq(deviceDisplayCampaigns.deviceId, deviceId))
+      .returning();
+    return result.length;
   },
 
   async saveDevice(id: string, data: Partial<{

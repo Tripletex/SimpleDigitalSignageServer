@@ -127,6 +127,7 @@ export async function getAllDevices(c: Context<AppEnv>): Promise<Response> {
         displays: d.displays,
         displayCampaigns: (d.displayCampaigns ?? []).map((dc) => ({
           displayName: dc.displayName,
+          hardwareId: dc.hardwareId,
           campaignId: dc.campaignId,
         })),
       },
@@ -166,6 +167,7 @@ export async function getDeviceById(c: Context<AppEnv>): Promise<Response> {
       displays: device.displays,
       displayCampaigns: (device.displayCampaigns ?? []).map((dc) => ({
         displayName: dc.displayName,
+        hardwareId: dc.hardwareId,
         campaignId: dc.campaignId,
       })),
     },
@@ -212,6 +214,7 @@ export async function getTenantDevices(c: Context<AppEnv>): Promise<Response> {
         displays: d.displays,
         displayCampaigns: (d.displayCampaigns ?? []).map((dc) => ({
           displayName: dc.displayName,
+          hardwareId: dc.hardwareId,
           campaignId: dc.campaignId,
         })),
       },
@@ -323,11 +326,17 @@ export async function assignDisplayCampaign(c: Context<AppEnv>): Promise<Respons
     return c.json({ success: false, message: 'Device not found in this tenant' }, 404);
   }
 
+  // Look up hardware ID from the device's reported displays
+  const displayInfo = (device.displays as Array<{ name: string; hardwareId?: string }> | null)
+    ?.find((d) => d.name === displayName);
+  const hardwareId = displayInfo?.hardwareId;
+
   const result = await deviceRepository.assignDisplayCampaign(
     deviceId,
     displayName,
     assignmentData.campaignId,
     tenantId,
+    hardwareId,
   );
 
   try {
@@ -336,6 +345,33 @@ export async function assignDisplayCampaign(c: Context<AppEnv>): Promise<Respons
   } catch { /* ignore */ }
 
   return c.json({ success: true, result });
+}
+
+/**
+ * Clear all display campaign assignments for a device
+ */
+export async function clearDisplayCampaigns(c: Context<AppEnv>): Promise<Response> {
+  const user = c.get('user');
+  if (!user) {
+    return c.json({ success: false, message: 'Authentication required' }, 401);
+  }
+
+  const tenantId = c.req.param('tenantId');
+  const deviceId = c.req.param('deviceId');
+
+  const device = await deviceRepository.getDeviceById(deviceId);
+  if (!device || device.tenantId !== tenantId) {
+    return c.json({ success: false, message: 'Device not found in this tenant' }, 404);
+  }
+
+  const count = await deviceRepository.clearDisplayCampaigns(deviceId);
+
+  try {
+    wsManager.updateDeviceCampaigns(deviceId, []);
+    wsManager.notifyDevice(deviceId, { type: 'campaign_changed', timestamp: new Date().toISOString() });
+  } catch { /* ignore */ }
+
+  return c.json({ success: true, message: `Cleared ${count} campaign assignment(s)` });
 }
 
 /**
@@ -460,11 +496,18 @@ export async function getDeviceContent(c: Context<AppEnv>): Promise<Response> {
     }),
   );
 
-  // Build per-display response
-  const displays: Record<string, { campaign: Awaited<ReturnType<typeof resolveCampaign>> }> = {};
+  // Build per-display response, keyed by hardwareId when available, else displayName
+  const displays: Record<string, {
+    campaign: Awaited<ReturnType<typeof resolveCampaign>>;
+    displayName: string;
+    hardwareId?: string;
+  }> = {};
   for (const dc of displayCampaigns) {
-    displays[dc.displayName] = {
+    const key = dc.hardwareId || dc.displayName;
+    displays[key] = {
       campaign: resolvedCampaigns.get(dc.campaignId) ?? null,
+      displayName: dc.displayName,
+      hardwareId: dc.hardwareId ?? undefined,
     };
   }
 
