@@ -14,6 +14,7 @@ export class Player {
   private localPort: number = 8080;
   private _statusMessage: string = 'Waiting for content';
   private intervalId: number | null = null;
+  private _displayName: string = '';
 
   private currentScheduleId: string | null = null;
   private currentItemIndex = 0;
@@ -25,6 +26,15 @@ export class Player {
     this.cdp = cdp;
     this.health = health;
     this.display = display;
+  }
+
+  /** Tag for log messages to identify which display this player serves. */
+  private get tag(): string {
+    return this._displayName ? `[PLAYER:${this._displayName}]` : '[PLAYER]';
+  }
+
+  setDisplayName(name: string): void {
+    this._displayName = name;
   }
 
   setDeviceInfo(deviceId: string, serverUrl: string, localPort?: number): void {
@@ -54,13 +64,13 @@ export class Player {
   start(intervalMs: number): void {
     this.stop();
     this.intervalId = setInterval(() => this.tick(), intervalMs);
-    console.log(`[PLAYER] Started (tick every ${intervalMs / 1000}s)`);
+    console.log(`${this.tag} Started (tick every ${intervalMs / 1000}s)`);
     // Run immediately
     this.tick();
   }
 
   skipToNext(): void {
-    console.log('[PLAYER] Video ended, skipping to next item');
+    console.log(`${this.tag} Video ended, skipping to next item`);
     const items = this.getCurrentItems();
     if (items && items.length > 0) {
       this.currentItemIndex = (this.currentItemIndex + 1) % items.length;
@@ -112,7 +122,7 @@ export class Player {
 
     // Schedule changed — reset to beginning
     if (activeSchedule.id !== this.currentScheduleId) {
-      console.log(`[PLAYER] Schedule changed to: ${playlist.name}`);
+      console.log(`${this.tag} Schedule changed to: ${playlist.name}`);
       this.currentScheduleId = activeSchedule.id;
       this.currentItemIndex = 0;
       this.itemStartTime = Date.now();
@@ -139,7 +149,7 @@ export class Player {
 
   private async playItem(item: PlaylistItem): Promise<void> {
     if (this.health.shouldSkipUrl()) {
-      console.warn(`[PLAYER] Skipping item due to health failures: ${item.data?.location || item.type}`);
+      console.warn(`${this.tag} Skipping item due to health failures: ${item.data?.location || item.type}`);
       this.health.resetFailures();
       this.currentItemIndex = (this.currentItemIndex + 1) % (this.campaign?.schedules
         .find((s) => s.id === this.currentScheduleId)?.playlist.items.length || 1);
@@ -153,20 +163,20 @@ export class Player {
     const itemType = item.type.toLowerCase();
 
     if (itemType === 'sleep') {
-      console.log(`[PLAYER] Sleep for ${item.duration}s`);
+      console.log(`${this.tag} Sleep for ${item.duration}s`);
       await this.navigateTo('about:blank');
       this.display.off();
     } else if (itemType === 'image' && item.data?.location) {
-      console.log(`[PLAYER] Show image: ${item.data.location} (${item.duration}s)`);
+      console.log(`${this.tag} Show image: ${item.data.location} (${item.duration}s)`);
       this.display.on();
       await this.showImage(item.data.location, item.data.fit, item.data.bgColor);
     } else if (itemType === 'youtube' && item.data?.location) {
       const dur = item.duration > 0 ? `${item.duration}s` : 'video length';
-      console.log(`[PLAYER] Show YouTube: ${item.data.location} (${dur})`);
+      console.log(`${this.tag} Show YouTube: ${item.data.location} (${dur})`);
       this.display.on();
       await this.showYoutube(item.data.location, item.data.muted, item.data.loop, item.data.loopCount);
     } else if (itemType === 'url' && item.data?.location) {
-      console.log(`[PLAYER] Navigate to: ${item.data.location} (${item.duration}s)`);
+      console.log(`${this.tag} Navigate to: ${item.data.location} (${item.duration}s)`);
       this.display.on();
       await this.navigateTo(item.data.location);
     }
@@ -188,16 +198,16 @@ export class Player {
           domain: c.domain || defaultDomain,
         }));
         await this.cdp.setCookies(cookies);
-        console.log(`[PLAYER] Set ${cookies.length} cookie(s) for ${defaultDomain || 'unknown'}`);
+        console.log(`${this.tag} Set ${cookies.length} cookie(s) for ${defaultDomain || 'unknown'}`);
       }
 
       // Set extra headers (replaced per item, cleared if none)
       await this.cdp.setExtraHeaders(item.data?.headers || null);
       if (item.data?.headers && Object.keys(item.data.headers).length > 0) {
-        console.log(`[PLAYER] Set ${Object.keys(item.data.headers).length} extra header(s)`);
+        console.log(`${this.tag} Set ${Object.keys(item.data.headers).length} extra header(s)`);
       }
     } catch (error) {
-      console.warn('[PLAYER] Failed to apply browser config:', error instanceof Error ? error.message : error);
+      console.warn(`${this.tag} Failed to apply browser config:`, error instanceof Error ? error.message : error);
     }
   }
 
@@ -207,7 +217,7 @@ export class Player {
       await this.cdp.navigate(url);
       this.currentUrl = url;
     } catch (error) {
-      console.error('[PLAYER] Navigation failed:', error instanceof Error ? error.message : error);
+      console.error(`${this.tag} Navigation failed:`, error instanceof Error ? error.message : error);
     }
   }
 
@@ -248,13 +258,13 @@ export class Player {
     }
 
     const embedUrl = `http://127.0.0.1:${this.localPort}/embed/youtube?${params}`;
-    console.log(`[PLAYER] YouTube via server: ${embedUrl}`);
+    console.log(`${this.tag} YouTube via server: ${embedUrl}`);
 
     try {
       await this.cdp.navigate(embedUrl);
       this.currentUrl = youtubeUrl;
     } catch (error) {
-      console.error('[PLAYER] YouTube navigation failed:', error instanceof Error ? error.message : error);
+      console.error(`${this.tag} YouTube navigation failed:`, error instanceof Error ? error.message : error);
     }
   }
 
@@ -270,7 +280,7 @@ export class Player {
       await this.cdp.navigate(embedUrl);
       this.currentUrl = imageUrl;
     } catch (error) {
-      console.error('[PLAYER] Image navigation failed:', error instanceof Error ? error.message : error);
+      console.error(`${this.tag} Image navigation failed:`, error instanceof Error ? error.message : error);
     }
   }
 
@@ -287,9 +297,9 @@ export class Player {
     try {
       await this.cdp.navigate(embedUrl);
       this.display.on();
-      console.log(`[PLAYER] Showing status page: ${status}`);
+      console.log(`${this.tag} Showing status page: ${status}`);
     } catch (error) {
-      console.error('[PLAYER] Failed to show status page:', error instanceof Error ? error.message : error);
+      console.error(`${this.tag} Failed to show status page:`, error instanceof Error ? error.message : error);
     }
   }
 }

@@ -1,4 +1,4 @@
-import type { ClientConfig } from '../types.ts';
+import type { ClientConfig, DisplayInfo } from '../types.ts';
 
 const CHROME_PATHS: Record<string, string[]> = {
   darwin: [
@@ -110,6 +110,71 @@ export async function launchChrome(config: ClientConfig): Promise<ChromeProcess>
       } catch {
         // already dead
       }
+    },
+  };
+}
+
+/**
+ * Launch a Chrome instance positioned on a specific display.
+ * Each display gets its own CDP port, user-data-dir, and window position.
+ */
+export async function launchChromeForDisplay(
+  config: ClientConfig,
+  display: DisplayInfo,
+  cdpPort: number,
+): Promise<ChromeProcess> {
+  const chromePath = config.chromePath || await findChromeBinary();
+  console.log(`[CHROME] Launching for display "${display.name}" on port ${cdpPort}`);
+
+  const tmpBase = Deno.build.os === 'windows'
+    ? (Deno.env.get('TEMP') || Deno.env.get('TMP') || 'C:\\Temp')
+    : '/tmp';
+  const safeName = display.name.replace(/[^a-zA-Z0-9]/g, '_');
+  const userDataDir = `${tmpBase}${Deno.build.os === 'windows' ? '\\' : '/'}signage-chrome-${safeName}`;
+
+  const args = [
+    `--remote-debugging-port=${cdpPort}`,
+    '--noerrdialogs',
+    '--disable-session-crashed-bubble',
+    '--disable-infobars',
+    '--disable-translate',
+    '--disable-features=TranslateUI',
+    '--disable-background-networking',
+    '--disable-sync',
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--autoplay-policy=no-user-gesture-required',
+    `--user-data-dir=${userDataDir}`,
+  ];
+
+  // Position and size the window on the target display
+  if (display.x !== undefined && display.y !== undefined) {
+    args.push(`--window-position=${display.x},${display.y}`);
+  }
+  if (display.width && display.height) {
+    args.push(`--window-size=${display.width},${display.height}`);
+  }
+  args.push('--kiosk');
+  args.push('about:blank');
+
+  const command = new Deno.Command(chromePath, {
+    args,
+    stdout: 'null',
+    stderr: 'null',
+  });
+
+  const process = command.spawn();
+  await waitForCdp(cdpPort);
+
+  console.log(`[CHROME] Display "${display.name}" ready on CDP port ${cdpPort}`);
+
+  return {
+    process,
+    cdpPort,
+    kill() {
+      try {
+        process.kill('SIGTERM');
+      } catch { /* already dead */ }
     },
   };
 }

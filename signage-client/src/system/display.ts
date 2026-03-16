@@ -98,6 +98,75 @@ async function detectLinuxXrandr(): Promise<DisplayInfo[]> {
 // ---------------------------------------------------------------------------
 
 async function detectMacOS(): Promise<DisplayInfo[]> {
+  // Use Swift/AppKit to get screen names, positions, and sizes in one call.
+  // NSScreen provides localizedName, frame origin, and frame size.
+  const swiftCode = `
+import AppKit
+import CoreGraphics
+for screen in NSScreen.screens {
+    let f = screen.frame
+    let name = screen.localizedName
+    let desc = screen.deviceDescription
+    let displayID = desc[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID ?? 0
+    let vendor = CGDisplayVendorNumber(displayID)
+    let model = CGDisplayModelNumber(displayID)
+    let serial = CGDisplaySerialNumber(displayID)
+    print("\\(name)|\\(vendor):\\(model):\\(serial)|\\(Int(f.origin.x))|\\(Int(f.origin.y))|\\(Int(f.size.width))|\\(Int(f.size.height))")
+}
+`;
+
+  const displays: DisplayInfo[] = [];
+  try {
+    const cmd = new Deno.Command('swift', {
+      args: ['-e', swiftCode],
+      stdout: 'piped',
+      stderr: 'piped',
+    });
+    const output = await cmd.output();
+    if (!output.success) {
+      console.warn('[DISPLAY] Swift screen detection failed, falling back to system_profiler');
+      return await detectMacOSFallback();
+    }
+
+    const text = new TextDecoder().decode(output.stdout).trim();
+    if (!text) return await detectMacOSFallback();
+
+    let isFirst = true;
+    for (const line of text.split('\n')) {
+      const [name, hwId, xStr, yStr, wStr, hStr] = line.split('|');
+      if (!name) continue;
+
+      const x = parseInt(xStr) || 0;
+      const y = parseInt(yStr) || 0;
+      const width = parseInt(wStr) || 0;
+      const height = parseInt(hStr) || 0;
+
+      displays.push({
+        name,
+        hardwareId: hwId || undefined,
+        connected: true,
+        primary: isFirst,
+        resolution: width && height ? `${width}x${height}` : undefined,
+        x,
+        y,
+        width,
+        height,
+      });
+      isFirst = false;
+    }
+  } catch {
+    return await detectMacOSFallback();
+  }
+
+  if (displays.length === 0) {
+    displays.push({ name: 'default', connected: true, primary: true });
+  }
+
+  return displays;
+}
+
+/** Fallback if Swift is not available — uses system_profiler (no position data). */
+async function detectMacOSFallback(): Promise<DisplayInfo[]> {
   const displays: DisplayInfo[] = [];
   try {
     const cmd = new Deno.Command('system_profiler', {
@@ -117,27 +186,31 @@ async function detectMacOS(): Promise<DisplayInfo[]> {
       for (const monitor of monitors) {
         const name = monitor._name || 'Unknown';
         const resolutionStr = monitor._spdisplays_resolution || '';
-        // Parse "1920 x 1080 @ 60 Hz" or "2560 x 1440 (QHD/WQHD) @ 60Hz"
         const resParts = resolutionStr.match(/(\d+)\s*x\s*(\d+)/);
         const resolution = resParts ? `${resParts[1]}x${resParts[2]}` : undefined;
 
         displays.push({
           name,
-          connected: true, // system_profiler only lists connected displays
+          connected: true,
           primary: isFirst,
           resolution,
         });
         isFirst = false;
       }
     }
-  } catch { /* system_profiler not available */ }
+  } catch { /* not available */ }
 
   if (displays.length === 0) {
-    // Fallback: at least report one display
     displays.push({ name: 'default', connected: true, primary: true });
   }
 
-  // Deduplicate names — append index for identical monitors (e.g. "LG HDR 4K" → "LG HDR 4K (1)", "LG HDR 4K (2)")
+  // Deduplicate names for fallback path
+  deduplicateNames(displays);
+  return displays;
+}
+
+/** Append index suffix for duplicate display names. */
+function deduplicateNames(displays: DisplayInfo[]): void {
   const nameCounts = new Map<string, number>();
   for (const d of displays) {
     nameCounts.set(d.name, (nameCounts.get(d.name) || 0) + 1);
@@ -150,8 +223,6 @@ async function detectMacOS(): Promise<DisplayInfo[]> {
       d.name = `${d.name} (${idx})`;
     }
   }
-
-  return displays;
 }
 
 // ---------------------------------------------------------------------------

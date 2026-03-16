@@ -45,6 +45,8 @@ export interface Campaign {
 /** Per-display content mapping returned by the server. */
 export interface DisplayContent {
   campaign: Campaign | null;
+  displayName?: string;
+  hardwareId?: string;
 }
 
 export interface ContentResponse {
@@ -81,14 +83,24 @@ export interface NetworkInterface {
 }
 
 export interface DisplayInfo {
-  /** Connector name, e.g. "HDMI-1", "HDMI-2", "DSI-1" */
+  /** Connector name, e.g. "HDMI-1", "HDMI-2", "LG HDR 4K (1)" */
   name: string;
+  /** Hardware identifier — stable across reboots/cable swaps (vendor:model:serial) */
+  hardwareId?: string;
   /** Whether a display is physically connected */
   connected: boolean;
   /** Whether this is the primary display */
   primary: boolean;
   /** Current resolution if connected, e.g. "1920x1080" */
   resolution?: string;
+  /** Screen position X in global coordinate space */
+  x?: number;
+  /** Screen position Y in global coordinate space */
+  y?: number;
+  /** Screen width in points */
+  width?: number;
+  /** Screen height in points */
+  height?: number;
 }
 
 export interface HealthStatus {
