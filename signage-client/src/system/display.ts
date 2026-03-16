@@ -136,6 +136,21 @@ async function detectMacOS(): Promise<DisplayInfo[]> {
     // Fallback: at least report one display
     displays.push({ name: 'default', connected: true, primary: true });
   }
+
+  // Deduplicate names — append index for identical monitors (e.g. "LG HDR 4K" → "LG HDR 4K (1)", "LG HDR 4K (2)")
+  const nameCounts = new Map<string, number>();
+  for (const d of displays) {
+    nameCounts.set(d.name, (nameCounts.get(d.name) || 0) + 1);
+  }
+  const nameIndexes = new Map<string, number>();
+  for (const d of displays) {
+    if ((nameCounts.get(d.name) || 0) > 1) {
+      const idx = (nameIndexes.get(d.name) || 0) + 1;
+      nameIndexes.set(d.name, idx);
+      d.name = `${d.name} (${idx})`;
+    }
+  }
+
   return displays;
 }
 

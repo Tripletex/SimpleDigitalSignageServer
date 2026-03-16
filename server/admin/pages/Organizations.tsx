@@ -113,12 +113,12 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
         console.log("Processed tenants with details:", tenantsWithDetails);
         setOrganizations(tenantsWithDetails);
         
-        // Set the first org as selected if needed
-        if (tenantsWithDetails.length > 0 && !selectedOrgId) {
-          console.log("Setting first tenant as selected:", tenantsWithDetails[0].id);
-          setSelectedOrgId(tenantsWithDetails[0].id);
-        } else if (tenantsWithDetails.length === 0) {
-          console.warn("No tenants available to select");
+        // Auto-select first org if current selection is invalid
+        if (tenantsWithDetails.length > 0) {
+          const currentValid = tenantsWithDetails.some(org => org.id === selectedOrgId);
+          if (!currentValid) {
+            setSelectedOrgId(tenantsWithDetails[0].id);
+          }
         }
         
         setError(null);
@@ -383,7 +383,7 @@ const Organizations: React.FC<OrganizationsProps> = ({ user, setIsAuthenticated,
                   </div>
                   
                   {!selectedOrg.isPersonal && selectedOrg.userRole === 'owner' && (
-                    <div className="organization-header-actions">
+                    <div className="action-buttons-cell">
                       <button
                         className="btn btn-info btn-sm"
                         onClick={() => {
