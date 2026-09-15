@@ -1,35 +1,37 @@
-# ---- Base Node ----
-FROM node:lts AS base
-WORKDIR /usr/src/app
+# ---- Admin UI Build ----
+FROM denoland/deno:2 AS adminbuild
+WORKDIR /app
 
-# ---- client ----
-FROM base AS clientbuild
-WORKDIR /usr/src/app
-COPY client/ ./client
-COPY shared/ ./shared
+# Install npm dependencies
+COPY server/package.json server/package-lock.json* ./
+COPY server/.npmrc server/deno.json ./
+RUN deno run -A npm:npm ci
 
-WORKDIR /usr/src/app/client
-RUN ls -lrt
-RUN npm ci
-RUN npm run build
+# Build admin UI (matches deno task build:admin)
+COPY server/admin/ ./admin/
+COPY server/public/ ./public/
+COPY server/index.html server/vite.config.ts server/tsconfig.json ./
+RUN deno task build:admin
 
-# ---- server ----
-FROM base AS serverbuild
-WORKDIR /usr/src/app
-COPY server/ ./server
-COPY shared/ ./shared
-
-WORKDIR /usr/src/app/server
-RUN ls -lrt
-RUN npm ci
-RUN npm run build
-
-# ---- Release ----
-FROM base AS release
+# ---- Server ----
+FROM denoland/deno:2 AS release
 LABEL org.opencontainers.image.source="https://github.com/Tripletex/SimpleDigitalSignageServer"
-COPY --from=clientbuild /usr/src/app/client/build ./client/
-COPY --from=serverbuild /usr/src/app/server/ ./server
-ENV CLIENT_PATH=../../../../client/
-WORKDIR /usr/src/app/server
+WORKDIR /app/server
+
+# Copy server source and config
+COPY server/deno.json server/.npmrc ./
+COPY server/src/ ./src/
+COPY server/migrations/ ./migrations/
+
+# Cache dependencies
+RUN deno cache src/main.ts
+
+# Copy built admin UI
+COPY --from=adminbuild /app/dist ./dist/
+
+# Run as non-root user (deno user is provided by the base image)
+USER deno
+
 EXPOSE 4000
-CMD [ "node", "build/server/src/server.js" ]
+
+CMD ["deno", "task", "start"]
