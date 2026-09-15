@@ -26,3 +26,9 @@ saved-config.json
 
 .claude-memory-private
 .claude/settings.local.json
+
+# macOS
+.DS_Store
+
+# Archived Node.js server (replaced by Deno, kept locally only)
+server-node-archived/
